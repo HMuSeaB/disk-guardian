@@ -30,7 +30,9 @@
       "id": "nvidia-dxcache",
       "name": "NVIDIA DirectX 着色器缓存",
       "level": 1,
-      "paths": ["%LOCALAPPDATA%\\NVIDIA\\DXCache"],
+      "paths": [
+        "%LOCALAPPDATA%\\NVIDIA\\DXCache"
+      ],
       "size_hint": "8.25 GiB",
       "rebuild": "自动重建；首次进游戏重编 shader 卡 1-2 分钟，不影响稳定性",
       "why": "Dism++ 的 Data.xml 里根本没有 shader/DXCache 规则，这是最大空白"
@@ -39,7 +41,9 @@
       "id": "nvidia-glcache",
       "name": "NVIDIA OpenGL 着色器缓存",
       "level": 1,
-      "paths": ["%LOCALAPPDATA%\\NVIDIA\\GLCache"],
+      "paths": [
+        "%LOCALAPPDATA%\\NVIDIA\\GLCache"
+      ],
       "size_hint": "48 MiB",
       "rebuild": "自动重建",
       "why": "同上"
@@ -48,7 +52,9 @@
       "id": "go-build",
       "name": "Go 编译缓存",
       "level": 1,
-      "paths": ["%LOCALAPPDATA%\\go-build"],
+      "paths": [
+        "%LOCALAPPDATA%\\go-build"
+      ],
       "size_hint": "1.08 GiB",
       "rebuild": "go build 自动重建；或用 go clean -cache",
       "why": "Dism++ 未覆盖"
@@ -57,7 +63,9 @@
       "id": "user-temp",
       "name": "当前用户临时目录",
       "level": 1,
-      "paths": ["%LOCALAPPDATA%\\Temp"],
+      "paths": [
+        "%LOCALAPPDATA%\\Temp"
+      ],
       "size_hint": "22 MiB",
       "rebuild": "自动重建",
       "note": "被占用的文件会删不掉（rc=124），属正常，跳过即可"
@@ -66,14 +74,18 @@
       "id": "inetcache",
       "name": "WinINet 网页缓存",
       "level": 1,
-      "paths": ["%LOCALAPPDATA%\\Microsoft\\Windows\\INetCache"],
+      "paths": [
+        "%LOCALAPPDATA%\\Microsoft\\Windows\\INetCache"
+      ],
       "rebuild": "自动重建"
     },
     {
       "id": "windows-temp",
       "name": "Windows 临时目录",
       "level": 1,
-      "paths": ["%SystemRoot%\\Temp"],
+      "paths": [
+        "%SystemRoot%\\Temp"
+      ],
       "requires_admin": true,
       "rebuild": "自动重建"
     },
@@ -81,7 +93,9 @@
       "id": "prefetch",
       "name": "Windows 预读取文件",
       "level": 1,
-      "paths": ["%SystemRoot%\\Prefetch"],
+      "paths": [
+        "%SystemRoot%\\Prefetch"
+      ],
       "requires_admin": true,
       "rebuild": "自动重建；清后首次启动程序略慢",
       "note": "Dism++ Data.xml 标注「不建议频繁清理」"
@@ -90,7 +104,9 @@
       "id": "wu-download",
       "name": "Windows 更新下载缓存",
       "level": 2,
-      "paths": ["%SystemRoot%\\SoftwareDistribution\\Download"],
+      "paths": [
+        "%SystemRoot%\\SoftwareDistribution\\Download"
+      ],
       "requires_admin": true,
       "recent_hours": 6,
       "rebuild": "自动重建",
@@ -100,7 +116,9 @@
       "id": "npm-cache",
       "name": "npm 缓存",
       "level": 2,
-      "paths": ["%LOCALAPPDATA%\\npm-cache"],
+      "paths": [
+        "%LOCALAPPDATA%\\npm-cache"
+      ],
       "size_hint": "176 MiB",
       "rebuild": "npm cache clean --force 更安全",
       "rebuild_cmd": "npm cache clean --force"
@@ -109,7 +127,9 @@
       "id": "pip-cache",
       "name": "pip 缓存",
       "level": 2,
-      "paths": ["%LOCALAPPDATA%\\pip\\Cache"],
+      "paths": [
+        "%LOCALAPPDATA%\\pip\\Cache"
+      ],
       "size_hint": "196 MiB",
       "rebuild_cmd": "pip cache purge"
     },
@@ -117,7 +137,10 @@
       "id": "pnpm-store",
       "name": "pnpm store",
       "level": 2,
-      "paths": ["%LOCALAPPDATA%\\pnpm", "%LOCALAPPDATA%\\pnpm-cache"],
+      "paths": [
+        "%LOCALAPPDATA%\\pnpm",
+        "%LOCALAPPDATA%\\pnpm-cache"
+      ],
       "size_hint": "1.88 GiB",
       "rebuild_cmd": "pnpm store prune"
     },
@@ -125,7 +148,9 @@
       "id": "cargo-registry",
       "name": "Cargo crate 缓存",
       "level": 2,
-      "paths": ["%USERPROFILE%\\.cargo\\registry"],
+      "paths": [
+        "%USERPROFILE%\\.cargo\\registry"
+      ],
       "size_hint": "1.88 GiB",
       "rebuild": "cargo build 时重下"
     },
@@ -133,7 +158,9 @@
       "id": "go-mod",
       "name": "Go module 缓存",
       "level": 2,
-      "paths": ["%USERPROFILE%\\go\\pkg\\mod"],
+      "paths": [
+        "%USERPROFILE%\\go\\pkg\\mod"
+      ],
       "size_hint": "1.73 GiB",
       "rebuild_cmd": "go clean -modcache"
     },
@@ -141,7 +168,9 @@
       "id": "gradle-caches",
       "name": "Gradle 缓存",
       "level": 2,
-      "paths": ["%USERPROFILE%\\.gradle\\caches"],
+      "paths": [
+        "%USERPROFILE%\\.gradle\\caches"
+      ],
       "size_hint": "795 MiB",
       "rebuild": "Gradle 自动重下"
     },
@@ -149,7 +178,9 @@
       "id": "nuget-packages",
       "name": "NuGet 包缓存",
       "level": 2,
-      "paths": ["%USERPROFILE%\\.nuget\\packages"],
+      "paths": [
+        "%USERPROFILE%\\.nuget\\packages"
+      ],
       "size_hint": "305 MiB",
       "rebuild": "还原时重下"
     },
@@ -157,7 +188,9 @@
       "id": "ms-playwright",
       "name": "Playwright 浏览器二进制",
       "level": 2,
-      "paths": ["%LOCALAPPDATA%\\ms-playwright"],
+      "paths": [
+        "%LOCALAPPDATA%\\ms-playwright"
+      ],
       "size_hint": "1.06 GiB",
       "rebuild_cmd": "playwright install"
     },
@@ -165,25 +198,20 @@
       "id": "package-cache",
       "name": "WiX / VS 安装源缓存",
       "level": 2,
-      "paths": ["%ProgramData%\\Package Cache"],
+      "paths": [
+        "%ProgramData%\\Package Cache"
+      ],
       "size_hint": "2.60 GiB",
       "rebuild": "VS / VC++ 升级、修复、增添组件时需联网重下",
       "note": "Dism++ Data.xml 有对应 Warning"
     },
     {
-      "id": "rust-target",
-      "name": "Rust 构建产物 (target)",
-      "level": 2,
-      "paths": ["%CODE_ROOT%\\zerogravity-src\\target", "%CODE_ROOT%\\SlateTerm\\slateterm-grid\\target"],
-      "size_hint": "6.06 GiB (D 盘)",
-      "rebuild": "cargo build 重建",
-      "note": "这两项在 D 盘，对 C 盘无帮助；单独用于 D 盘腾空间"
-    },
-    {
       "id": "docker-wsl",
       "name": "Docker Desktop WSL 虚拟盘",
       "level": 3,
-      "paths": ["%LOCALAPPDATA%\\Docker\\wsl"],
+      "paths": [
+        "%LOCALAPPDATA%\\Docker\\wsl"
+      ],
       "size_hint": "16.25 GiB",
       "rebuild": "不能重建：删 = 丢所有镜像 / 容器 / 卷",
       "note": "更稳的做法是 Docker Desktop → Troubleshoot → Clean / Purge data"
@@ -192,7 +220,9 @@
       "id": "wsl-distro",
       "name": "WSL 发行版虚拟盘",
       "level": 3,
-      "paths": ["%LOCALAPPDATA%\\wsl"],
+      "paths": [
+        "%LOCALAPPDATA%\\wsl"
+      ],
       "size_hint": "4.69 GiB",
       "rebuild": "不能重建：删 = 丢发行版里全部数据"
     },
@@ -200,7 +230,10 @@
       "id": "android-avd",
       "name": "Android AVD 虚拟设备",
       "level": 3,
-      "paths": ["%USERPROFILE%\\.android\\avd", "%LOCALAPPDATA%\\Android"],
+      "paths": [
+        "%USERPROFILE%\\.android\\avd",
+        "%LOCALAPPDATA%\\Android"
+      ],
       "size_hint": "14.4 GiB",
       "rebuild": "SDK Manager 可重建，但要重下系统镜像",
       "note": "雷电模拟器用自己的 vmdk，不依赖这些"
@@ -209,7 +242,9 @@
       "id": "cursor-launcher",
       "name": "CursorLauncher 旧缓存",
       "level": 3,
-      "paths": ["%LOCALAPPDATA%\\CursorLauncher"],
+      "paths": [
+        "%LOCALAPPDATA%\\CursorLauncher"
+      ],
       "size_hint": "5.15 GiB",
       "rebuild": "确认启动器已不用再删；8-9 月旧数据"
     },
@@ -231,7 +266,9 @@
       "id": "rust-toolchains",
       "name": "Rust 工具链",
       "level": 3,
-      "paths": ["%USERPROFILE%\\.rustup\\toolchains"],
+      "paths": [
+        "%USERPROFILE%\\.rustup\\toolchains"
+      ],
       "size_hint": "4.06 GiB",
       "rebuild": "rustup 重下；还写 Rust 就别删"
     },
@@ -239,7 +276,9 @@
       "id": "downloads",
       "name": "下载目录",
       "level": 3,
-      "paths": ["%USERPROFILE%\\Downloads"],
+      "paths": [
+        "%USERPROFILE%\\Downloads"
+      ],
       "size_hint": "2.04 GiB",
       "rebuild": "不能重建：用户文件，只能自己挑"
     },
@@ -247,13 +286,68 @@
       "id": "workbuddy-old-logs",
       "name": "WorkBuddy 旧日志/追踪",
       "level": 3,
-      "paths": ["%USERPROFILE%\\.workbuddy\\logs", "%USERPROFILE%\\.workbuddy\\traces"],
+      "paths": [
+        "%USERPROFILE%\\.workbuddy\\logs",
+        "%USERPROFILE%\\.workbuddy\\traces"
+      ],
       "size_hint": "2.28 GiB",
       "allow_inside_deny": true,
       "mode": "old-files",
       "keep_days": 14,
       "rebuild": "不能重建，但只清 14 天前的旧文件是安全的",
       "note": "整个 .workbuddy 是 HARD_DENY；这里不删目录本身，只挑两个子目录里 14 天前的旧文件"
+    },
+    {
+      "id": "rust-target",
+      "name": "Rust 构建产物（target）",
+      "level": 2,
+      "discover": {
+        "roots": [
+          "D:\\4rchive",
+          "D:\\Learning",
+          "D:\\Document"
+        ],
+        "dirname": "target",
+        "require_sibling": "Cargo.toml",
+        "max_depth": 6,
+        "exclude_contains": [
+          "\\resources\\app",
+          "\\resources\\app.asar",
+          "\\node_modules\\electron",
+          "\\program files",
+          "\\windows\\"
+        ]
+      },
+      "size_hint": "30.28 GiB（8 处；最大 tern/target 20.50 GiB、zerogravity-src 5.79 GiB）",
+      "rebuild": "cargo build 自动重建。但 20 GiB 级项目冷编译要数十分钟到数小时，别在赶工时清",
+      "why": "Dism++ 没有这个概念。D 盘只剩 3.8% 时的第一大头",
+      "note": "只在同级目录存在 Cargo.toml 时才认定，裸名叫 target 的目录一律不碰"
+    },
+    {
+      "id": "js-node-modules",
+      "name": "Node 项目依赖（node_modules）",
+      "level": 2,
+      "discover": {
+        "roots": [
+          "D:\\4rchive",
+          "D:\\Learning",
+          "D:\\Document"
+        ],
+        "dirname": "node_modules",
+        "require_sibling": "package.json",
+        "max_depth": 6,
+        "exclude_contains": [
+          "\\resources\\app",
+          "\\resources\\app.asar",
+          "\\node_modules\\electron",
+          "\\program files",
+          "\\windows\\"
+        ]
+      },
+      "size_hint": "9.17 GiB（80 余处，约 50 万文件）",
+      "rebuild": "npm install / pnpm install 重装，要联网。pnpm 项目优先用 pnpm store prune",
+      "why": "Dism++ 未覆盖。单个项目看不出大，80 个叠起来是 9 GiB",
+      "note": "只在同级目录存在 package.json 时才认定。bin/build/dist 因语义歧义不做成规则"
     }
   ]
 }

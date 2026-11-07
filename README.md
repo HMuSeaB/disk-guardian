@@ -103,8 +103,10 @@ set PY=C:\Users\36230\.workbuddy\binaries\python\versions\3.13.12\python.exe
 > 这是验证形态的 v0：依赖本机托管 Python，不是单 exe。
 > 形态确认后可以再用 wintuner 那套 Go + 内嵌网页骨架包成单文件分发。
 
-**扫描耗时（本机实测）**：L1 约 0.02 s；L2 约 12 s（30 万个文件）；
-L3 约 15 s（48 万个文件）。切等级时前端显示加载态，服务端缓存 5 分钟，
+**扫描耗时（本机实测）**：L1 约 1 s；L2 25–48 s；L3 36–60 s（抖动大，看磁盘忙不忙）。
+L2/L3 变慢是 2026-11-07 加 D 盘发现规则后的代价：多遍历 78 万个文件
+（39 个 `node_modules` 24.6 万 + 8 个 `target` 5 万 + 发现器走目录树）。
+切等级时前端显示加载态，服务端缓存 5 分钟，
 执行前一定用 `refresh=True` 重新扫一遍，不会照着旧计划动手。
 有一个反直觉的实测：**给扫描加 4 线程池反而更慢**（L2 11.2 → 11.9 s，
 L3 13.9 → 17.4 s，单块 SSD 上 `scandir` 并发只是争用），所以保持串行；
@@ -166,6 +168,80 @@ L3 13.9 → 17.4 s，单块 SSD 上 `scandir` 并发只是争用），所以保�
 **想改禁区必须改 `guardian.py` 里的常量，并且重跑 `--check-rules` 看自测是否全 PASS。**
 这是故意的：规则表是可编辑数据，禁区是不可编辑代码。
 
+### 目录会变的场景用 `discover`（2026-11-07 新增）
+
+有些东西没法写死路径：D 盘今天有 8 个 Rust `target`、39 个 `node_modules`，
+下周数量就变了。手写清单必然腐化——事实上原来的 `rust-target` 只列了 2 个路径，
+漏掉了当时最大的 `Code\tern\target`（20.5 GiB）。
+
+改成按名字发现，但要能证明身份：
+
+```json
+{
+  "id": "js-node-modules",
+  "level": 2,
+  "discover": {
+    "roots": ["D:\\4rchive", "D:\\Learning", "D:\\Document"],
+    "dirname": "node_modules",
+    "require_sibling": "package.json",
+    "max_depth": 6,
+    "exclude_contains": ["\\resources\\app", "\\resources\\app.asar"]
+  }
+}
+```
+
+四个约束缺一不可：
+
+| 字段 | 作用 |
+|---|---|
+| `roots` | 只在这些根目录下找。**只放代码区**，别放 `D:\Tools` 这类软件安装目录 |
+| `dirname` | 目录名（大小写不敏感） |
+| `require_sibling` | 同级必须有这个文件才认。`target` 要 `Cargo.toml`，`node_modules` 要 `package.json` |
+| `exclude_contains` | 路径含这些片段的一律跳过 |
+| `max_depth` | 递归深度上限，默认 5 |
+
+**⚠ `require_sibling` 单独不够，这是实测踩到的坑。**
+每个 Electron 应用里都有 `resources\app\package.json` + `node_modules`，
+第一版规则把它们全认成了项目依赖：
+
+```
+d:\tools\cursor\resources\app\node_modules            ← Cursor 本体
+d:\tools\Photoshop\...\Required\...\node_modules      ← Photoshop 组件
+d:\tools\WorkBuddy\resources\app.asar.unpacked\cli\node_modules
+d:\tools\微信web开发者工具\...\node_modules
+```
+
+按那时的结果清理，这几个软件直接报废。所以 `exclude_contains` 是硬要求，
+并且 `--check-rules` 里加了三条发现器自测（项目被发现 / 应用被排除 / 无清单被跳过），
+该自测失败时程序直接拒绝启动。
+
+发现结果会**照常走 HARD_DENY 检查**，和写死的路径没有区别。
+
+---
+
+## D 盘（2026-11-07 新增）
+
+原来的规则表基本只管 C 盘和用户目录，但本机 **D 盘剩 3.8% 比 C 盘还紧**。
+补两条按需开启的：
+
+| id | 内容 | 实测 | level |
+|---|---|---|---|
+| `rust-target` | Rust `target` | 30.28 GiB / 8 处（最大 `Code\tern\target` 20.5 GiB） | 2 |
+| `js-node-modules` | Node 项目依赖 | 3.69 GiB / 39 处 | 2 |
+
+都是 level 2：能重建，但 `target` 冷编译要几十分钟、`node_modules` 要联网重装，
+所以默认不进计划，得显式 `--level 2`。
+
+```bat
+python guardian.py --level 2 --include rust-target,js-node-modules
+```
+
+**没做成规则的东西**：`bin`（3.76 GiB）、`build`（2.12 GiB）、`dist`（0.69 GiB）。
+名字歧义太大——`bin` 既可能是编译输出，也可能是程序本体存放处，一律不碰。
+
+D 盘的大头其实是游戏和资料（`Steam` 82 GiB、`ow` 72 GiB、`BaiduNetdiskDownload` 93 GiB），
+那些是资产不是缓存，工具不该管，也管不了。
+
 ---
 
 ## 日志与报告
@@ -210,7 +286,7 @@ Dism++ 本机配置建议（观察期）：
 ```
 D:\4rchive\Code\disk-guardian\
   guardian.py              主程序：扫描 / 预览 / 执行 / 硬禁区 / 日志
-  rules.json               规则表（26 条）与分级说明
+  rules.json               规则表（27 条）与分级说明
   recycle.py               回收站封装（规避模态弹窗）
   ui\server.py             回环 WebUI 服务（令牌 / API / --app= 窗口）
   ui\assets\index.html     单文件现代化界面（无外部资源，离线可用）

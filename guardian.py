@@ -267,6 +267,105 @@ def collect_old_files(paths, keep_days: int):
     return found
 
 
+# Discovery: a bare directory name is never enough evidence to delete it.
+# `target` could be anything; a sibling Cargo.toml makes it a build dir.
+# One walk serves every rule that shares the same roots (measured: two rules
+# with the same roots cost 12.6 s; sharing the index halves it).
+_DIR_INDEX_CACHE = {}
+
+
+def _dir_index(roots, max_depth: int, dirnames: frozenset) -> list:
+    """Walk `roots` once and collect (lowercased name, path) for `dirnames`.
+
+    Prunes on a match: a `node_modules` never contains another one worth
+    looking at, and descending into it costs ~200k stat calls for nothing.
+    """
+    key = (tuple(roots), max_depth, dirnames)
+    cached = _DIR_INDEX_CACHE.get(key)
+    if cached is not None:
+        return cached
+    hits = []
+
+    def walk(parent: str, depth: int) -> None:
+        try:
+            with os.scandir(parent) as it:
+                entries = list(it)
+        except OSError:
+            return
+        for entry in entries:
+            # is_dir() is answered from the scandir buffer; stat() is a real
+            # syscall. On D: this loop sees ~1.1M entries, so stat-ing every
+            # file made discovery 3x slower for no benefit (2026-11-07).
+            try:
+                if not entry.is_dir(follow_symlinks=False):
+                    continue
+                st = entry.stat(follow_symlinks=False)
+            except OSError:
+                continue
+            if _is_reparse_st(st):
+                continue
+            name = entry.name.lower()
+            if name in dirnames:
+                hits.append((name, entry.path))
+                continue  # a matched dir never nests another one
+            if depth < max_depth:
+                walk(entry.path, depth + 1)
+
+    for root in roots:
+        if os.path.isdir(root):
+            walk(root, 0)
+    _DIR_INDEX_CACHE[key] = hits
+    return hits
+
+
+def _filter_hits(index, dirname: str, sibling: str, excludes) -> list:
+    """Apply the identity checks to raw index hits."""
+    picked = []
+    for name, path in index:
+        if name != dirname:
+            continue
+        low = path.lower()
+        # A sibling manifest is NOT enough on its own: every Electron app ships
+        # resources/app/package.json + node_modules, and those are the program
+        # itself. Deleting them breaks the installed app (measured 2026-11-07:
+        # Cursor / Photoshop / WorkBuddy / WeChat devtools all matched).
+        if any(x in low for x in excludes):
+            continue
+        if sibling and not os.path.isfile(os.path.join(os.path.dirname(path), sibling)):
+            continue
+        picked.append(path)
+    picked.sort()
+    return picked
+
+
+def _spec_parts(spec: dict, variables: dict):
+    dirname = str(spec.get("dirname", "")).strip().lower()
+    roots = [expand(r, variables) for r in spec.get("roots", [])]
+    return {
+        "dirname": dirname,
+        "roots": roots,
+        "sibling": str(spec.get("require_sibling", "") or ""),
+        "max_depth": int(spec.get("max_depth", 5)),
+        "excludes": [str(x).lower() for x in spec.get("exclude_contains", [])],
+    }
+
+
+def discover_paths(spec: dict, variables: dict) -> list:
+    """Find disposable dirs by name under given roots, guarded by a sibling file.
+
+    rules.json cannot hardcode every project path -- D: holds 8 Rust targets and
+    39 node_modules today, and the set changes weekly. Hardcoding rots silently;
+    a name-only match is dangerous. So each hit must prove its identity with a
+    sibling manifest (Cargo.toml / package.json) and must not sit inside an
+    application bundle.
+    """
+    parts = _spec_parts(spec, variables)
+    if not parts["dirname"]:
+        return []
+    index = _dir_index(parts["roots"], parts["max_depth"], frozenset([parts["dirname"]]))
+    return _filter_hits(index, parts["dirname"], parts["sibling"], parts["excludes"])
+
+
 class Logger:
     """Line-buffered log: every line is flushed AND fsynced immediately."""
 
@@ -342,14 +441,71 @@ def load_rules():
         seen.add(rid)
         if r.get("level") not in (1, 2, 3):
             raise SystemExit("rules.json: %s has invalid level %r" % (rid, r.get("level")))
-        if not r.get("paths"):
-            raise SystemExit("rules.json: %s has no paths" % rid)
-        for p in r["paths"]:
+        if not r.get("paths") and not r.get("discover"):
+            raise SystemExit("rules.json: %s has neither paths nor discover" % rid)
+        for p in r.get("paths", []):
             try:
                 expand(p, variables)
             except ValueError as exc:
                 raise SystemExit("rules.json: %s: %s" % (rid, exc))
+        spec = r.get("discover")
+        if spec is not None:
+            if not isinstance(spec, dict) or not spec.get("dirname"):
+                raise SystemExit("rules.json: %s discover needs a dirname" % rid)
+            for root in spec.get("roots", []):
+                try:
+                    expand(root, variables)
+                except ValueError as exc:
+                    raise SystemExit("rules.json: %s: %s" % (rid, exc))
     return doc, variables, seen
+
+
+def discover_selftest(logger=None) -> bool:
+    """Fail fast if discovery can mistake a program's bundled deps for a project's.
+
+    Regression guard for 2026-11-07: the first version of the node_modules rule
+    matched `D:\\Tools\\Cursor\\resources\\app\\node_modules` and
+    `...\\Adobe Photoshop 2025\\Required\\...\\node_modules`. A sibling
+    package.json exists in every Electron app, so the manifest check alone is
+    not sufficient -- the app would have been destroyed.
+    """
+    import tempfile
+    ok = True
+    with tempfile.TemporaryDirectory() as td:
+        proj = os.path.join(td, "proj")
+        os.makedirs(os.path.join(proj, "node_modules"))
+        open(os.path.join(proj, "package.json"), "w").close()
+
+        app = os.path.join(td, "Editor", "resources", "app")
+        os.makedirs(os.path.join(app, "node_modules"))
+        open(os.path.join(app, "package.json"), "w").close()
+
+        os.makedirs(os.path.join(td, "bare", "node_modules"))
+
+        spec = {
+            "roots": [td],
+            "dirname": "node_modules",
+            "require_sibling": "package.json",
+            "max_depth": 6,
+            "exclude_contains": ["\\resources\\app"],
+        }
+        found = [p.lower() for p in discover_paths(spec, {})]
+        cases = [
+            ("项目依赖被发现",
+             any(p.endswith("proj\\node_modules") for p in found), True),
+            ("Electron 应用被排除",
+             any("resources\\app" in p for p in found), False),
+            ("无包清单的目录被跳过",
+             any(p.endswith("bare\\node_modules") for p in found), False),
+        ]
+        for name, actual, want in cases:
+            if actual != want:
+                ok = False
+                if logger:
+                    logger("SELF-TEST FAIL: 发现器 %s（实际 %s）" % (name, actual))
+            elif logger:
+                logger("SELF-TEST PASS  discover  %s" % name)
+    return ok
 
 
 def deny_selftest(variables, logger=None):
@@ -376,12 +532,47 @@ def deny_selftest(variables, logger=None):
                 logger("SELF-TEST FAIL: 正常缓存被误拦 %s -> %s" % (p, reasons[0]))
         elif logger:
             logger("SELF-TEST PASS  allowed  %s" % p)
+    if not discover_selftest(logger):
+        ok = False
     return ok
+
+
+def _discover_all(rules_doc, variables, level, include, exclude) -> dict:
+    """Run discovery for every rule, sharing one walk per (roots, depth) group.
+
+    Only rules that can actually enter the plan are discovered -- otherwise an
+    L1 scan pays for D-drive discovery of level-2 rules (measured: 1.1 s -> 5.4 s).
+    """
+    groups = {}
+    for rule in rules_doc["rules"]:
+        if int(rule["level"]) > level:
+            continue
+        if include and rule["id"] not in include:
+            continue
+        if rule["id"] in exclude:
+            continue
+        spec = rule.get("discover")
+        if not spec:
+            continue
+        parts = _spec_parts(spec, variables)
+        if not parts["dirname"]:
+            continue
+        key = (tuple(parts["roots"]), parts["max_depth"])
+        groups.setdefault(key, []).append((rule["id"], parts))
+    result = {}
+    for (roots, md), items in groups.items():
+        names = frozenset(p["dirname"] for _, p in items)
+        index = _dir_index(list(roots), md, names)
+        for rid, parts in items:
+            result[rid] = _filter_hits(index, parts["dirname"],
+                                       parts["sibling"], parts["excludes"])
+    return result
 
 
 def build_plan(rules_doc, variables, level, include, exclude, admin):
     deny_subtree = [expand(t, variables) for t in DENY_SUBTREE_TEMPLATES]
     deny_exact = [expand(t, variables) for t in DENY_EXACT_TEMPLATES]
+    discovered = _discover_all(rules_doc, variables, level, include, exclude)
     plan = []
     for rule in rules_doc["rules"]:
         if int(rule["level"]) > level:
@@ -390,7 +581,11 @@ def build_plan(rules_doc, variables, level, include, exclude, admin):
             continue
         if rule["id"] in exclude:
             continue
-        paths = [expand(p, variables) for p in rule["paths"]]
+        paths = [expand(p, variables) for p in rule.get("paths", [])]
+        if rule.get("discover"):
+            # Discovery results are ordinary targets from here on: they go
+            # through the same HARD_DENY check as any hardcoded path.
+            paths.extend(discovered.get(rule["id"], []))
         reasons = []
         for p in paths:
             reasons.extend(check_target(rule, p, deny_subtree, deny_exact))
