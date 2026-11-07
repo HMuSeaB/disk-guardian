@@ -99,5 +99,6 @@ public sealed class PlanRow
     public string Mode { get; set; } = "tree";
     public int KeepDays { get; set; }
 
+    public bool IsReady => Status == "ready";
     public bool IsSelected { get; set; } = true;
 }

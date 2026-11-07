@@ -5,6 +5,8 @@ using System.Runtime.InteropServices;
 
 namespace DiskGuardian.Core.Safety;
 
+public sealed record RecycleItem(long SizeBytes, string OriginalPath, string DeletedFileName, DateTime DeletedTime);
+
 /// <summary>
 /// Windows 原生安全回收站管理器：
 /// 1. 两步删除之步骤一：移入回收站 (FOF_ALLOWUNDO)；
@@ -119,8 +121,6 @@ public static class RecycleManager
 
         return (succeeded, failed);
     }
-
-    public sealed record RecycleItem(long SizeBytes, string OriginalPath, string DeletedFileName, DateTime DeletedTime);
 
     /// <summary>
     /// 枚举回收站内的物理文件（解析 $Recycle.Bin 下的 $I 和 $R）

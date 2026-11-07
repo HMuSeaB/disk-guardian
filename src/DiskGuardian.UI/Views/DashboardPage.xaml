@@ -35,7 +35,7 @@
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
                             <TextBlock Text="系统盘 (C:)" FontWeight="SemiBold" FontSize="16"/>
                         </StackPanel>
-                        <ProgressBar x:Name="CProgress" Height="8" CornerRadius="4" Value="88"/>
+                        <ProgressBar x:Name="CProgress" Height="8" Value="88"/>
                         <TextBlock x:Name="CText" Text="可用: 34.60 GiB / 300.00 GiB (已用 88%)" 
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="13"/>
                     </StackPanel>
@@ -49,7 +49,7 @@
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
                             <TextBlock Text="数据与代码盘 (D:)" FontWeight="SemiBold" FontSize="16"/>
                         </StackPanel>
-                        <ProgressBar x:Name="DProgress" Height="8" CornerRadius="4" Value="96" Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+                        <ProgressBar x:Name="DProgress" Height="8" Value="96" Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
                         <TextBlock x:Name="DText" Text="可用: 38.2 GiB / 953 GiB (极度紧张，~34 GiB 构建产物可释放)" 
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="13"/>
                     </StackPanel>
