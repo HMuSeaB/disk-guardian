@@ -12,14 +12,21 @@ public sealed partial class MainWindow : Window
     {
         this.InitializeComponent();
 
-        // 窗口初始化：居中显示，设置尺寸与自定义标题栏
-        this.CenterOnScreen();
-        this.SetWindowSize(1280, 860);
-        this.ExtendsContentIntoTitleBar = true;
-        this.SetTitleBar(AppTitleBar);
+        try
+        {
+            // 窗口初始化：居中显示，设置尺寸与自定义标题栏
+            this.CenterOnScreen();
+            this.SetWindowSize(1200, 800);
+            this.ExtendsContentIntoTitleBar = true;
+            this.SetTitleBar(AppTitleBar);
+        }
+        catch { }
 
         // 默认进入仪表盘
-        NavView.SelectedItem = NavView.MenuItems[0];
+        if (NavView.MenuItems.Count > 0)
+        {
+            NavView.SelectedItem = NavView.MenuItems[0];
+        }
     }
 
     private void NavView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)

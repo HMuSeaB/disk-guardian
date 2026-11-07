@@ -33,10 +33,26 @@
                         IsSettingsVisible="False"
                         SelectionChanged="NavView_SelectionChanged">
             <NavigationView.MenuItems>
-                <NavigationViewItem Content="仪表盘与体检" Tag="dashboard" Icon="Home"/>
-                <NavigationViewItem Content="空间规则清理" Tag="cleaner" Icon="Delete"/>
-                <NavigationViewItem Content="回收站安全管理" Tag="recycle" Icon="Trash"/>
-                <NavigationViewItem Content="审计流水日志" Tag="audit" Icon="Document"/>
+                <NavigationViewItem Content="仪表盘与体检" Tag="dashboard">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE80F;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="空间规则清理" Tag="cleaner">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE74D;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="回收站安全管理" Tag="recycle">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE72C;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="审计流水日志" Tag="audit">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE7C3;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
             </NavigationView.MenuItems>
 
             <Frame x:Name="ContentFrame" Margin="16,8,24,16"/>
