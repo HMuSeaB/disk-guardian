@@ -1,0 +1,40 @@
+using System;
+using DiskGuardian.UI.Views;
+using Microsoft.UI.Xaml.Controls;
+using WinUIEx;
+
+namespace DiskGuardian.UI;
+
+public sealed partial class MainWindow : WindowEx
+{
+    public MainWindow()
+    {
+        this.InitializeComponent();
+
+        // 窗口初始化：居中显示，设置自定义标题栏
+        this.CenterOnScreen();
+        this.ExtendsContentIntoTitleBar = true;
+        this.SetTitleBar(AppTitleBar);
+
+        // 默认进入仪表盘
+        NavView.SelectedItem = NavView.MenuItems[0];
+    }
+
+    private void NavView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
+    {
+        if (args.SelectedItem is NavigationViewItem item)
+        {
+            var tag = item.Tag?.ToString();
+            Type pageType = tag switch
+            {
+                "dashboard" => typeof(DashboardPage),
+                "cleaner" => typeof(CleanerPage),
+                "recycle" => typeof(RecyclePage),
+                "audit" => typeof(AuditPage),
+                _ => typeof(DashboardPage)
+            };
+
+            ContentFrame.Navigate(pageType);
+        }
+    }
+}

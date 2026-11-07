@@ -1,0 +1,100 @@
+<Page
+    x:Class="DiskGuardian.UI.Views.DashboardPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="24" Margin="0,0,16,24">
+            <!-- 头部 -->
+            <StackPanel Spacing="4">
+                <TextBlock Text="系统状态总览" FontSize="26" FontWeight="SemiBold"/>
+                <TextBlock Text="基于真实排障证据驱动，坚决不误杀事件日志与系统核心依赖" 
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
+
+            <!-- 25H2 观察期与禁区指示卡片 -->
+            <InfoBar Title="25H2 蓝屏观察期防护生效中" 
+                     Message="已锁定 winevt 事件日志、崩溃转储 (dmp) 与专用转储文件 (dedicateddumpfile.sys)，硬禁区代码化自测 100% PASS。" 
+                     IsOpen="True" Severity="Success" IsClosable="False"/>
+
+            <!-- 磁盘容量卡片组 -->
+            <Grid ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- C 盘卡片 -->
+                <Border Grid.Column="0" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                        CornerRadius="8" Padding="20">
+                    <StackPanel Spacing="10">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
+                            <TextBlock Text="系统盘 (C:)" FontWeight="SemiBold" FontSize="16"/>
+                        </StackPanel>
+                        <ProgressBar x:Name="CProgress" Height="8" CornerRadius="4" Value="88"/>
+                        <TextBlock x:Name="CText" Text="可用: 34.60 GiB / 300.00 GiB (已用 88%)" 
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="13"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- D 盘卡片 -->
+                <Border Grid.Column="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                        CornerRadius="8" Padding="20">
+                    <StackPanel Spacing="10">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
+                            <TextBlock Text="数据与代码盘 (D:)" FontWeight="SemiBold" FontSize="16"/>
+                        </StackPanel>
+                        <ProgressBar x:Name="DProgress" Height="8" CornerRadius="4" Value="96" Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+                        <TextBlock x:Name="DText" Text="可用: 38.2 GiB / 953 GiB (极度紧张，~34 GiB 构建产物可释放)" 
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="13"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- 差异化能力亮点 -->
+            <TextBlock Text="核心守护亮点" FontSize="18" FontWeight="SemiBold" Margin="0,8,0,0"/>
+            <Grid ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
+                    <StackPanel Spacing="8">
+                        <FontIcon Glyph="&#xE734;" FontSize="20" Foreground="{ThemeResource AccentAAFillColorDefaultBrush}"/>
+                        <TextBlock Text="现代开发链专治" FontWeight="SemiBold"/>
+                        <TextBlock Text="自动探测 Rust target、前端 node_modules，Dism++ 在此完全为 0 命中。" 
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" FontSize="12"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
+                    <StackPanel Spacing="8">
+                        <FontIcon Glyph="&#xE81D;" FontSize="20" Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+                        <TextBlock Text="防误杀死锁" FontWeight="SemiBold"/>
+                        <TextBlock Text="同级清单匹配 + 严格排除 Electron 运行时，绝不误触常用软件。" 
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" FontSize="12"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="2" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
+                    <StackPanel Spacing="8">
+                        <FontIcon Glyph="&#xE72C;" FontSize="20" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
+                        <TextBlock Text="可撤销两步删除" FontWeight="SemiBold"/>
+                        <TextBlock Text="清理默认移入回收站，单独确认才清空，告别粗暴的永久物理删除。" 
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" FontSize="12"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

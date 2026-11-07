@@ -1,0 +1,70 @@
+<Page
+    x:Class="DiskGuardian.UI.Views.RecyclePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:safety="using:DiskGuardian.Core.Safety"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Spacing="4">
+            <TextBlock Text="回收站安全管理" FontSize="26" FontWeight="SemiBold"/>
+            <TextBlock Text="两步删除之步骤二：按 $I/$R 分批物理清理，坏项自动跳过，绝不调用导致弹窗挂死的 SHEmptyRecycleBinW" 
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+        </StackPanel>
+
+        <Border Grid.Row="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                CornerRadius="8" Padding="16,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="回收站现状:" FontSize="14"/>
+                        <TextBlock x:Name="RecycleSummaryText" Text="正在统计..." FontWeight="Bold" FontSize="15" Foreground="{ThemeResource AccentAAFillColorDefaultBrush}"/>
+                    </StackPanel>
+                    <TextBlock Text="只在确实需要彻底腾出物理空间时才执行清空操作" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+                    <Button Content="刷新" Click="RefreshButton_Click"/>
+                    <Button Content="清空回收站 (永久清理)" Click="PurgeButton_Click" Style="{ThemeResource AccentButtonStyle}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <ListView x:Name="RecycleListView" Grid.Row="2"
+                  BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                  CornerRadius="8" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="safety:RecycleManager+RecycleItem">
+                    <Grid Padding="12,8" ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                            <TextBlock Text="{x:Bind OriginalPath}" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{x:Bind DeletedTime}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </StackPanel>
+
+                        <TextBlock Grid.Column="1" Text="{x:Bind SizeBytes}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    </Grid>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+    </Grid>
+</Page>

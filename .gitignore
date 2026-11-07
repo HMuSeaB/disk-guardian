@@ -17,3 +17,13 @@ venv/
 # 本机凭据 / 私有配置（此项目不需要，但保持习惯）
 secrets.json
 *.local.json
+
+# .NET / C# 编译产物与缓存
+bin/
+obj/
+artifacts/
+publish/
+.vs/
+*.user
+*.suo
+

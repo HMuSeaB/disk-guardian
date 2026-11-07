@@ -134,6 +134,26 @@ BATS = {
         "timeout /t 2 >nul",
         "exit /b 0",
     ] + NOSRV,
+
+    "6-启动WinUI3原生客户端.bat": HEAD + [
+        "title disk-guardian WinUI 3 原生客户端",
+        'set "ROOT=D:\\4rchive\\Code\\disk-guardian"',
+        'cd /d "%ROOT%"',
+        "echo 正在启动 disk-guardian WinUI 3 原生 Fluent 桌面客户端...",
+        'dotnet run --project src\\DiskGuardian.UI\\DiskGuardian.UI.csproj',
+        "if errorlevel 1 pause",
+        "exit /b %errorlevel%",
+    ],
+
+    "7-C#核心自检.bat": HEAD + [
+        "title disk-guardian C# 核心自检",
+        'set "ROOT=D:\\4rchive\\Code\\disk-guardian"',
+        'cd /d "%ROOT%"',
+        'dotnet run --project src\\DiskGuardian.Cli\\DiskGuardian.Cli.csproj -- --check-rules',
+        "echo.",
+        "pause",
+        "exit /b %errorlevel%",
+    ],
 }
 
 

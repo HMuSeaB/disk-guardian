@@ -1,0 +1,62 @@
+name: Build & Package DiskGuardian
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build & Package (Windows x64)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore Dependencies
+        shell: pwsh
+        run: |
+          dotnet restore src/DiskGuardian.sln -p:Platform=x64 -p:RuntimeIdentifier=win-x64
+
+      - name: Run Core Safety Self-Test (21 Assertions)
+        shell: pwsh
+        run: |
+          dotnet run --project src/DiskGuardian.Cli/DiskGuardian.Cli.csproj -c Release --no-restore -p:Platform=x64 -p:RuntimeIdentifier=win-x64 -- --check-rules
+
+      - name: Publish WinUI 3 Desktop App
+        shell: pwsh
+        run: |
+          dotnet publish src/DiskGuardian.UI/DiskGuardian.UI.csproj -c Release -r win-x64 --self-contained false -p:Platform=x64 -o artifacts/DiskGuardian-WinUI3
+          Copy-Item rules.json artifacts/DiskGuardian-WinUI3/ -Force
+
+      - name: Publish CLI Tool
+        shell: pwsh
+        run: |
+          dotnet publish src/DiskGuardian.Cli/DiskGuardian.Cli.csproj -c Release -r win-x64 --self-contained false -p:Platform=x64 -o artifacts/DiskGuardian-Cli
+          Copy-Item rules.json artifacts/DiskGuardian-Cli/ -Force
+
+      - name: Create ZIP Packages
+        shell: pwsh
+        run: |
+          Compress-Archive -Path artifacts/DiskGuardian-WinUI3/* -DestinationPath artifacts/disk-guardian-winui3-win-x64.zip
+          Compress-Archive -Path artifacts/DiskGuardian-Cli/* -DestinationPath artifacts/disk-guardian-cli-win-x64.zip
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: disk-guardian-windows-x64
+          path: |
+            artifacts/*.zip
+          retention-days: 14
