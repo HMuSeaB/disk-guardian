@@ -1,0 +1,19 @@
+# 运行产物：日志 / 报告 / 动作流水，绝不入库
+out/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 转储与大数据文件（蓝屏排查期间留下的，体积巨大）
+*.dmp
+*.mdmp
+*.vmdk
+*.vhdx
+
+# 本机凭据 / 私有配置（此项目不需要，但保持习惯）
+secrets.json
+*.local.json

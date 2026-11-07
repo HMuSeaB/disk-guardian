@@ -1,0 +1,7 @@
+# 顺序很重要：git 是"后匹配的覆盖前面的"，
+# *.bat 这条必须写在通用规则【后面】，否则 .bat 会被存成 LF，双击后闪退。
+* text=auto eol=lf
+
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
