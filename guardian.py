@@ -131,11 +131,18 @@ SELF_TEST_MUST_PASS = [
 
 
 def out(msg: str = "") -> None:
-    """Print with a fallback so a cp936 console never crashes on odd chars."""
+    """Print with fallbacks for cp936 consoles and pythonw (no stdout at all)."""
+    if sys.stdout is None:  # pythonw.exe: the GUI server has no console
+        return
     try:
         print(msg, flush=True)
     except UnicodeEncodeError:
-        print(msg.encode("ascii", "backslashreplace").decode("ascii"), flush=True)
+        try:
+            print(msg.encode("ascii", "backslashreplace").decode("ascii"), flush=True)
+        except Exception:
+            pass
+    except Exception:
+        pass
 
 
 def build_vars(rules_doc: dict) -> dict:
@@ -196,13 +203,14 @@ def free_gib(drive: str = "C:\\"):
     return u.free / 2 ** 30, u.total / 2 ** 30
 
 
-def _is_reparse(path: str) -> bool:
-    """Skip junctions / symlinks so a scan never escapes into a loop."""
-    try:
-        st = os.stat(path, follow_symlinks=False)
-        return bool(getattr(st, "st_file_attributes", 0) & REPARSE_POINT)
-    except OSError:
-        return True  # conservative: unreadable -> do not descend
+def _is_reparse_st(st) -> bool:
+    """Junctions / symlinks must be skipped or a scan can loop forever.
+
+    Uses the stat we already have from DirEntry -- a separate os.stat() per
+    entry doubled the syscall count and made an L2 scan (300k files) take
+    longer than the GUI request timeout (measured 2026-11-07).
+    """
+    return bool(getattr(st, "st_file_attributes", 0) & REPARSE_POINT)
 
 
 def scan_tree(path: str) -> dict:
@@ -214,13 +222,13 @@ def scan_tree(path: str) -> dict:
             with os.scandir(cur) as it:
                 for entry in it:
                     try:
-                        if _is_reparse(entry.path):
+                        st = entry.stat(follow_symlinks=False)
+                        if _is_reparse_st(st):
                             continue
                         if entry.is_dir(follow_symlinks=False):
                             info["dirs"] += 1
                             stack.append(entry.path)
                         else:
-                            st = entry.stat(follow_symlinks=False)
                             info["bytes"] += st.st_size
                             info["files"] += 1
                             info["newest"] = max(info["newest"], st.st_mtime)
@@ -245,11 +253,12 @@ def collect_old_files(paths, keep_days: int):
                 with os.scandir(cur) as it:
                     for entry in it:
                         try:
-                            if _is_reparse(entry.path):
+                            st = entry.stat(follow_symlinks=False)
+                            if _is_reparse_st(st):
                                 continue
                             if entry.is_dir(follow_symlinks=False):
                                 stack.append(entry.path)
-                            elif entry.stat(follow_symlinks=False).st_mtime < cutoff:
+                            elif st.st_mtime < cutoff:
                                 found.append(entry.path)
                         except OSError:
                             pass
@@ -290,7 +299,7 @@ def log_action(record: dict):
 def confirm(token: str, assume_yes: bool) -> bool:
     if assume_yes:
         return True
-    if not sys.stdin.isatty():
+    if sys.stdin is None or not sys.stdin.isatty():
         out("Refusing: non-interactive session. Pass --yes only if you really mean it.")
         return False
     try:
@@ -386,6 +395,9 @@ def build_plan(rules_doc, variables, level, include, exclude, admin):
         for p in paths:
             reasons.extend(check_target(rule, p, deny_subtree, deny_exact))
         existing = [p for p in paths if os.path.exists(p)]
+        # Measured 2026-11-07: a 4-thread pool made this SLOWER (11.2->11.9 s
+        # for L2, 13.9->17.4 s for L3) -- one SSD, concurrent scandir just
+        # contends. Keep it serial; the win was removing the duplicate stat.
         scans = [scan_tree(p) for p in existing]
         size = sum(s["bytes"] for s in scans)
         files = sum(s["files"] for s in scans)
@@ -464,27 +476,58 @@ def print_plan(plan, level, logger, check_rules=False):
     return total
 
 
-def do_apply(plan, level, logger, assume_yes):
-    ready = [x for x in plan if x["status"] == "ready"]
-    if not ready:
-        logger("没有 status=ready 的规则，取消执行。")
-        return 1
+def expected_token(level: int) -> str:
+    return "DELETE" if level == 1 else "DELETE%d" % level
+
+
+def execute_rules(plan, ids, level, logger, preconfirmed=False, assume_yes=False):
+    """The ONE execution path, shared by the CLI and the GUI server.
+
+    The caller may only pass rule ids -- never paths. Every id is re-checked
+    against a freshly built plan: it must exist, be within the level gate,
+    have status=ready and carry no HARD_DENY verdict. HARD_DENY itself is
+    re-asserted before the first deletion.
+
+    preconfirmed=True is for the GUI, which has already collected and verified
+    the confirmation token itself (the server re-verifies it before calling).
+    """
+    rules_doc, variables, _ = load_rules()
+    if not deny_selftest(variables):
+        logger("拒绝执行：HARD_DENY 自测未通过。")
+        return {"ok": 0, "failed": 0, "error": "deny self-test failed"}
+
+    by_id = {x["id"]: x for x in plan}
+    unknown = [i for i in ids if i not in by_id]
+    if unknown:
+        logger("拒绝执行：未知规则 id %s" % ", ".join(unknown))
+        return {"ok": 0, "failed": 0, "error": "unknown ids"}
+
+    selected = [by_id[i] for i in ids]
+    blocked = [x["id"] for x in selected
+               if x["level"] > level or x["status"] != "ready" or x["reasons"]]
+    if blocked:
+        logger("拒绝执行：以下规则未通过等级/状态/禁区复核 %s" % ", ".join(blocked))
+        return {"ok": 0, "failed": 0, "error": "rules not eligible"}
+    if not selected:
+        logger("没有选中任何规则，取消执行。")
+        return {"ok": 0, "failed": 0, "error": "nothing selected"}
+
     logger("")
     logger(WARN_TEXT)
     logger("即将把下列内容【移入回收站】（可撤销，暂不永久删除）：")
-    for x in ready:
+    for x in selected:
         logger("  [%d] %-22s %11s  %s" % (x["level"], x["id"], x["size"], x["name"]))
         for p in x["existing"]:
             logger("       %s" % p)
     logger("真正腾出空间需要另跑 --purge；本次只是移入回收站。")
-    token = "DELETE" if level == 1 else "DELETE%d" % level
-    if not confirm(token, assume_yes):
+    token = expected_token(level)
+    if not preconfirmed and not confirm(token, assume_yes):
         logger("未确认，未删除任何东西。")
-        return 2
+        return {"ok": 0, "failed": 0, "error": "not confirmed"}
 
     before, _ = free_gib("C:\\")
-    ok_total, fail_total = 0, 0
-    for x in ready:
+    ok_total, fail_total, details = 0, 0, []
+    for x in selected:
         if x["mode"] == "old-files":
             targets = collect_old_files(x["existing"], x["keep_days"])
             logger("%s: old-files 模式，%d 个 %d 天前的文件" %
@@ -511,12 +554,21 @@ def do_apply(plan, level, logger, assume_yes):
             "ok": len(ok),
             "failed": [{"path": p, "rc": rc} for p, rc in failed],
         })
+        details.append({"id": x["id"], "ok": len(ok), "failed": len(failed)})
     after, _ = free_gib("C:\\")
     logger("")
     logger("执行完毕: ok=%d failed=%d | C: free %.2f -> %.2f GiB (delta %+.2f)" %
            (ok_total, fail_total, before, after, after - before))
     logger("下一步：确认无误后跑 --purge 永久清空回收站（会再次确认）。")
-    return 0
+    return {"ok": ok_total, "failed": fail_total, "details": details,
+            "free_before": round(before, 3), "free_after": round(after, 3)}
+
+
+def do_apply(plan, level, logger, assume_yes):
+    ids = [x["id"] for x in plan if x["status"] == "ready"]
+    result = execute_rules(plan, ids, level, logger,
+                           preconfirmed=False, assume_yes=assume_yes)
+    return 0 if "error" not in result else 2
 
 
 def do_purge(drives, logger, assume_yes):

@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>disk-guardian</title>
+<style>
+/* ---- design tokens ---- */
+:root {
+  color-scheme: dark;
+  --bg:#0d1117; --bg-soft:#121924; --surface:#161d29; --surface-2:#1c2533;
+  --border:#26313f; --border-soft:#1e2836;
+  --text:#e8edf5; --text-2:#9aa8bb; --text-3:#6b7b90;
+  --accent:#3ddc97; --accent-soft:rgba(61,220,151,.13); --accent-2:#59b8ff;
+  --warn:#ffb454; --warn-soft:rgba(255,180,84,.12);
+  --danger:#ff6b6b; --danger-soft:rgba(255,107,107,.12);
+  --lock:#8b9bb0; --shadow:0 10px 32px rgba(0,0,0,.32);
+  --radius:14px; --radius-sm:9px;
+}
+html[data-theme="light"] {
+  color-scheme: light;
+  --bg:#f4f7fa; --bg-soft:#eef3f8; --surface:#ffffff; --surface-2:#f7fafd;
+  --border:#dfe7ef; --border-soft:#eaf0f6;
+  --text:#1b2738; --text-2:#5a6b80; --text-3:#8797a9;
+  --accent:#0f9d6e; --accent-soft:rgba(15,157,110,.10); --accent-2:#1579c9;
+  --warn:#b57100; --warn-soft:rgba(181,113,0,.10);
+  --danger:#c83939; --danger-soft:rgba(200,57,57,.09);
+  --lock:#6b7b90; --shadow:0 8px 26px rgba(20,40,70,.10);
+}
+* { box-sizing:border-box; }
+html,body { height:100%; margin:0; }
+body {
+  background:var(--bg); color:var(--text); overflow:hidden;
+  font:14px/1.55 system-ui,"Microsoft YaHei UI","MiSans",-apple-system,Segoe UI,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+button,input { font:inherit; }
+button { cursor:pointer; }
+::-webkit-scrollbar { width:9px; height:9px; }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:9px; }
+::-webkit-scrollbar-track { background:transparent; }
+
+.app { display:grid; grid-template-columns:220px minmax(0,1fr); height:100vh; }
+
+/* ---- sidebar ---- */
+.side {
+  background:var(--bg-soft); border-right:1px solid var(--border-soft);
+  display:flex; flex-direction:column; padding:22px 14px 16px;
+}
+.brand { display:flex; align-items:center; gap:11px; padding:0 8px 24px; }
+.brand .mark {
+  width:34px; height:34px; flex:0 0 34px; border-radius:10px;
+  background:linear-gradient(145deg,var(--accent),var(--accent-2));
+  display:grid; place-items:center; color:#07120e; font-weight:800; font-size:17px;
+  box-shadow:0 5px 16px rgba(61,220,151,.22);
+}
+.brand .t1 { font-weight:700; font-size:15px; letter-spacing:.2px; }
+.brand .t2 { color:var(--text-3); font-size:11px; letter-spacing:.4px; }
+.nav { display:flex; flex-direction:column; gap:4px; }
+.nav button {
+  display:flex; align-items:center; gap:11px; width:100%; text-align:left;
+  padding:10px 12px; border:0; border-radius:var(--radius-sm);
+  background:transparent; color:var(--text-2); font-size:13.5px;
+  transition:background .16s,color .16s;
+}
+.nav button:hover { background:var(--surface-2); color:var(--text); }
+.nav button.on { background:var(--accent-soft); color:var(--accent); font-weight:600; }
+.nav .ico { width:18px; text-align:center; font-size:15px; opacity:.9; }
+.side-foot { margin-top:auto; padding:14px 10px 0; border-top:1px solid var(--border-soft); color:var(--text-3); font-size:11.5px; line-height:1.7; }
+.side-foot b { color:var(--text-2); font-weight:600; }
+
+/* ---- main ---- */
+.main { display:flex; flex-direction:column; min-width:0; }
+.top {
+  display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+  padding:16px 26px; border-bottom:1px solid var(--border-soft); background:var(--bg);
+}
+.top h1 { font-size:17px; margin:0; font-weight:650; letter-spacing:.2px; }
+.top .sub { color:var(--text-3); font-size:12px; margin-left:2px; }
+.drives { display:flex; gap:12px; flex:1 1 auto; min-width:260px; }
+.drive {
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm);
+  padding:8px 12px; min-width:170px; flex:1 1 170px; max-width:250px;
+}
+.drive .l { display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:12px; color:var(--text-2); }
+.drive .l b { color:var(--text); font-size:13px; font-weight:650; }
+.drive .bar { height:6px; border-radius:6px; background:var(--border-soft); margin:7px 0 4px; overflow:hidden; }
+.drive .bar i { display:block; height:100%; border-radius:6px; background:linear-gradient(90deg,var(--accent),var(--accent-2)); }
+.drive.hot .bar i { background:linear-gradient(90deg,var(--warn),var(--danger)); }
+.drive .f { font-size:11px; color:var(--text-3); }
+.badges { display:flex; align-items:center; gap:7px; }
+.badge {
+  font-size:11.5px; padding:5px 10px; border-radius:999px;
+  border:1px solid var(--border); color:var(--text-2); background:var(--surface); white-space:nowrap;
+}
+.badge.ok { color:var(--accent); border-color:var(--accent); background:var(--accent-soft); }
+.badge.warn { color:var(--warn); border-color:var(--warn); background:var(--warn-soft); }
+.icon-btn {
+  border:1px solid var(--border); background:var(--surface); color:var(--text-2);
+  border-radius:var(--radius-sm); padding:6px 10px; font-size:12px;
+}
+.icon-btn:hover { color:var(--text); border-color:var(--text-3); }
+
+.view { flex:1; overflow:auto; padding:22px 26px 96px; }
+.section-head { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:16px; flex-wrap:wrap; }
+.section-head h2 { font-size:19px; margin:0 0 4px; font-weight:650; }
+.section-head p { margin:0; color:var(--text-3); font-size:12.5px; }
+
+/* ---- segmented ---- */
+.seg { display:inline-flex; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:3px; gap:2px; }
+.seg button {
+  border:0; background:transparent; color:var(--text-2); padding:6px 14px;
+  border-radius:7px; font-size:12.5px; white-space:nowrap;
+}
+.seg button.on { background:var(--accent-soft); color:var(--accent); font-weight:650; }
+.btn {
+  border:1px solid var(--border); background:var(--surface); color:var(--text);
+  border-radius:10px; padding:9px 16px; font-size:13px; font-weight:550;
+  transition:transform .12s, background .16s, border-color .16s;
+}
+.btn:hover { border-color:var(--text-3); }
+.btn:active { transform:translateY(1px); }
+.btn.primary { background:var(--accent); border-color:var(--accent); color:#07120e; font-weight:700; }
+.btn.primary:hover { filter:brightness(1.07); }
+.btn.danger { background:var(--danger-soft); border-color:var(--danger); color:var(--danger); }
+.btn:disabled { opacity:.45; cursor:not-allowed; }
+.btn.ghost { background:transparent; }
+
+/* ---- summary tiles ---- */
+.tiles { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-bottom:18px; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px; }
+.tile .k { color:var(--text-3); font-size:12px; }
+.tile .v { font-size:25px; font-weight:700; letter-spacing:-.5px; margin-top:5px; }
+.tile .v small { font-size:13px; font-weight:500; color:var(--text-2); margin-left:4px; }
+.tile .d { color:var(--text-3); font-size:11.5px; margin-top:3px; }
+.tile.hl .v { color:var(--accent); }
+
+/* ---- rule cards ----
+   HARD CONSTRAINT: .rule has exactly 3 children for the 3 grid columns.
+   Any extra element must go INSIDE .rule-main (flex), never as a 4th column. */
+.rule {
+  display:grid; grid-template-columns:26px minmax(0,1fr) auto; gap:14px; align-items:start;
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:14px 16px; margin-bottom:10px;
+  transition:border-color .16s, background .16s;
+}
+.rule:hover { border-color:var(--text-3); }
+.rule.picked { border-color:var(--accent); background:var(--surface-2); }
+.rule.locked { opacity:.66; }
+.rule-main { min-width:0; }
+.rule-head { display:flex; align-items:center; gap:9px; flex-wrap:wrap; min-width:0; }
+.rule-head .name {
+  font-weight:650; font-size:14px; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; min-width:0;
+}
+.lv { font-size:10.5px; font-weight:750; padding:2px 7px; border-radius:5px; letter-spacing:.4px; white-space:nowrap; }
+.lv1 { color:var(--accent); background:var(--accent-soft); }
+.lv2 { color:var(--warn); background:var(--warn-soft); }
+.lv3 { color:var(--danger); background:var(--danger-soft); }
+.st { font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--border); color:var(--text-3); white-space:nowrap; }
+.st.ready { color:var(--accent); border-color:var(--accent); }
+.st.blocked { color:var(--danger); border-color:var(--danger); }
+.st.need-admin, .st.recent { color:var(--warn); border-color:var(--warn); }
+.rule-meta { color:var(--text-2); font-size:12px; margin-top:7px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rule-meta .dot { color:var(--text-3); margin:0 7px; }
+.rule-paths { margin-top:9px; display:flex; flex-direction:column; gap:3px; }
+.rule-paths code {
+  font:11.5px/1.5 ui-monospace,Consolas,monospace; color:var(--text-3);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block;
+}
+.rule-note { margin-top:8px; font-size:11.5px; color:var(--text-3); }
+.rule-note.warn { color:var(--warn); }
+.rule-size { text-align:right; font-weight:700; font-size:15px; white-space:nowrap; padding-top:2px; }
+.rule-size small { display:block; font-weight:400; font-size:11px; color:var(--text-3); margin-top:3px; }
+.chk { width:17px; height:17px; margin-top:2px; accent-color:var(--accent); cursor:pointer; }
+.chk:disabled { cursor:not-allowed; }
+.group-title { font-size:12px; color:var(--text-3); letter-spacing:.5px; margin:20px 0 10px; text-transform:uppercase; }
+.group-title:first-child { margin-top:0; }
+
+/* ---- bottom actions ---- */
+.actions {
+  position:absolute; bottom:0; left:220px; right:0;
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:13px 26px; background:var(--bg); border-top:1px solid var(--border);
+  box-shadow:0 -8px 24px rgba(0,0,0,.10);
+}
+.actions .sel { flex:1 1 auto; color:var(--text-2); font-size:13px; }
+.actions .sel b { color:var(--accent); font-size:16px; }
+
+/* ---- generic panels ---- */
+.panel { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px 20px; margin-bottom:14px; }
+.panel h3 { margin:0 0 10px; font-size:14px; font-weight:650; }
+.panel p { margin:0 0 8px; color:var(--text-2); font-size:12.5px; }
+.kv { display:flex; flex-wrap:wrap; gap:8px; }
+.kv code {
+  font:11.5px/1.5 ui-monospace,Consolas,monospace; color:var(--text-2);
+  background:var(--surface-2); border:1px solid var(--border-soft);
+  border-radius:7px; padding:5px 9px; max-width:100%; overflow:hidden; text-overflow:ellipsis;
+}
+.deny-row { display:grid; grid-template-columns:20px minmax(0,1fr); gap:10px; padding:6px 0; border-bottom:1px solid var(--border-soft); font-size:12.5px; }
+.deny-row:last-child { border-bottom:0; }
+.deny-row .lk { color:var(--lock); }
+.deny-row code { font:12px ui-monospace,Consolas,monospace; color:var(--text-2); word-break:break-all; }
+.logbox {
+  background:var(--bg-soft); border:1px solid var(--border-soft); border-radius:9px;
+  padding:12px 14px; font:11.5px/1.65 ui-monospace,Consolas,monospace;
+  color:var(--text-2); max-height:380px; overflow:auto; white-space:pre-wrap; word-break:break-all;
+}
+.recycle-row { display:grid; grid-template-columns:auto minmax(0,1fr); gap:14px; padding:8px 0; border-bottom:1px solid var(--border-soft); font-size:12.5px; }
+.recycle-row .sz { color:var(--accent); font-weight:650; white-space:nowrap; }
+.recycle-row .p { color:var(--text-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.empty { text-align:center; color:var(--text-3); padding:56px 20px; font-size:13px; }
+.empty .big { font-size:34px; display:block; margin-bottom:12px; opacity:.5; }
+.loading { display:inline-block; width:13px; height:13px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; vertical-align:-2px; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* ---- modal ---- */
+.backdrop {
+  position:fixed; inset:0; background:rgba(5,9,15,.72); backdrop-filter:blur(4px);
+  display:none; align-items:center; justify-content:center; z-index:50; padding:24px;
+}
+.backdrop.on { display:flex; }
+.modal { background:var(--surface); border:1px solid var(--border); border-radius:18px; box-shadow:var(--shadow); width:min(560px,100%); max-height:86vh; overflow:auto; }
+.modal .mh { padding:20px 22px 0; }
+.modal .mh h3 { margin:0 0 6px; font-size:17px; }
+.modal .mh .warnline { color:var(--danger); font-size:12.5px; font-weight:600; }
+.modal .mb { padding:14px 22px; color:var(--text-2); font-size:12.5px; }
+.modal .mb ul { margin:8px 0; padding-left:18px; max-height:190px; overflow:auto; }
+.modal .mb li { margin:4px 0; font-family:ui-monospace,Consolas,monospace; font-size:11.5px; }
+.modal .mb .tip { background:var(--warn-soft); border:1px solid var(--warn); color:var(--warn); padding:9px 11px; border-radius:9px; margin-top:10px; }
+.modal .token { margin:14px 22px 0; }
+.modal .token label { display:block; font-size:12px; color:var(--text-2); margin-bottom:6px; }
+.modal .token input {
+  width:100%; background:var(--bg-soft); border:1px solid var(--border); color:var(--text);
+  border-radius:9px; padding:10px 12px; outline:none;
+}
+.modal .token input:focus { border-color:var(--accent); }
+.modal .mf { display:flex; justify-content:flex-end; gap:10px; padding:18px 22px 20px; }
+.toast {
+  position:fixed; right:22px; bottom:86px; z-index:80; max-width:420px;
+  background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent);
+  border-radius:10px; padding:12px 16px; box-shadow:var(--shadow); font-size:12.5px;
+  opacity:0; transform:translateY(8px); pointer-events:none; transition:.2s;
+}
+.toast.on { opacity:1; transform:translateY(0); }
+.toast.err { border-left-color:var(--danger); color:var(--danger); }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <div class="mark">D</div>
+      <div><div class="t1">disk-guardian</div><div class="t2">规则驱动 · 预览优先</div></div>
+    </div>
+    <nav class="nav" id="nav">
+      <button data-page="cleanup" class="on"><span class="ico">▦</span>清理规则</button>
+      <button data-page="deny"><span class="ico">⛨</span>硬禁区</button>
+      <button data-page="recycle"><span class="ico">♲</span>回收站</button>
+      <button data-page="logs"><span class="ico">≡</span>运行日志</button>
+    </nav>
+    <div class="side-foot">
+      <b>默认只读</b>，不确认不会删任何东西。<br>
+      <b>两步式</b>：移入回收站 → 永久清空。<br>
+      <span id="ver">v?</span> · 本机自用
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="top">
+      <div><h1 id="title">清理规则</h1><span class="sub" id="subtitle">按规则表扫描，勾选后移入回收站</span></div>
+      <div class="drives" id="drives"></div>
+      <div class="badges" id="badges"></div>
+      <button class="icon-btn" id="theme" title="切换主题">◐</button>
+      <button class="icon-btn" id="quit" title="关闭界面服务">退出</button>
+    </div>
+    <div class="view" id="view"><div class="empty"><span class="big">◌</span><span class="loading"></span> 正在读取状态…</div></div>
+    <div class="actions" id="actions"></div>
+  </main>
+</div>
+
+<div class="backdrop" id="backdrop">
+  <div class="modal">
+    <div class="mh"><h3 id="mTitle">确认</h3><div class="warnline" id="mWarn"></div></div>
+    <div class="mb" id="mBody"></div>
+    <div class="token" id="mTokenWrap">
+      <label id="mTokenLabel">请输入确认令牌</label>
+      <input id="mToken" autocomplete="off" spellcheck="false" placeholder="">
+    </div>
+    <div class="mf">
+      <button class="btn ghost" id="mCancel">取消</button>
+      <button class="btn primary" id="mOk">确认执行</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+/* 中文文案里的引号一律用「」，避免 ASCII 双引号截断 JS 字符串。 */
+var TOKEN = new URLSearchParams(location.search).get('t') || '';
+var S = { page:'cleanup', level:1, rules:[], selected:new Set(), st:null, busy:false,
+          recycle:null, logs:null, modal:null };
+var PAGE_META = {
+  cleanup: ['清理规则','按规则表扫描，勾选后移入回收站'],
+  deny:    ['硬禁区','写在代码里，规则表改不动'],
+  recycle: ['回收站','永久清空前会再列一次清单'],
+  logs:    ['运行日志','每次动作都即时落盘，卡住也不丢']
+};
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function fmt(n){ return n>=2**30 ? (n/2**30).toFixed(2)+' GiB'
+               : n>=2**20 ? (n/2**20).toFixed(1)+' MiB'
+               : n>=2**10 ? (n/2**10).toFixed(0)+' KiB' : n+' B'; }
+
+async function api(path, opts){
+  opts = opts || {};
+  var init = { method: opts.method || 'GET',
+               headers: { 'X-DG-Token': TOKEN, 'Content-Type':'application/json' } };
+  if (opts.body) init.body = JSON.stringify(opts.body);
+  var r = await fetch(path, init);
+  var data = await r.json().catch(function(){ return {error:'HTTP '+r.status}; });
+  if (!r.ok) throw new Error(data.error || ('HTTP '+r.status));
+  return data;
+}
+var toastTimer = null;
+function toast(msg, isErr){
+  var t = $('toast'); t.textContent = msg; t.className = 'toast on' + (isErr?' err':'');
+  clearTimeout(toastTimer); toastTimer = setTimeout(function(){ t.className='toast'; }, 4200);
+}
+
+/* ---------- top bar ---------- */
+function driveCard(d){
+  if (!d) return '';
+  var hot = d.pct >= 88 ? ' hot' : '';
+  return '<div class="drive'+hot+'">'
+    + '<div class="l"><span>'+esc(d.letter)+': 盘</span><b>'+d.pct.toFixed(1)+'%</b></div>'
+    + '<div class="bar"><i style="width:'+Math.min(100,d.pct)+'%"></i></div>'
+    + '<div class="f">剩 '+d.free.toFixed(2)+' / '+d.total.toFixed(2)+' GiB</div></div>';
+}
+function renderTop(){
+  var s = S.st; if (!s) return;
+  $('drives').innerHTML = driveCard(s.c) + driveCard(s.d);
+  $('badges').innerHTML =
+      '<span class="badge '+(s.deny_ok?'ok':'warn')+'">'+(s.deny_ok?'禁区自测 PASS':'禁区自测 FAIL')+'</span>'
+    + '<span class="badge'+(s.admin?'':' warn')+'">'+(s.admin?'管理员':'非管理员')+'</span>'
+    + '<span class="badge">'+s.rule_count+' 条规则</span>';
+  $('ver').textContent = 'v'+s.version+' · '+s.updated;
+}
+
+/* ---------- navigation ---------- */
+function setPage(p){
+  S.page = p;
+  Array.prototype.forEach.call(document.querySelectorAll('#nav button'), function(b){
+    b.classList.toggle('on', b.dataset.page === p);
+  });
+  $('title').textContent = PAGE_META[p][0];
+  $('subtitle').textContent = PAGE_META[p][1];
+  $('actions').style.display = (p === 'cleanup') ? 'flex' : 'none';
+  if (p === 'cleanup') renderCleanup();
+  else if (p === 'deny') renderDeny();
+  else if (p === 'recycle') loadRecycle();
+  else if (p === 'logs') loadLogs();
+}
+
+/* ---------- cleanup page ---------- */
+function renderActions(){
+  var picked = S.rules.filter(function(r){ return S.selected.has(r.id); });
+  var bytes = picked.reduce(function(a,r){ return a + r.size_bytes; }, 0);
+  $('actions').innerHTML =
+      '<div class="sel">已选 <b>'+picked.length+'</b> 项 · 合计 <b>'+fmt(bytes)+'</b>'
+      + ' <span style="color:var(--text-3)">（当前 level ≤ '+S.level+'）</span></div>'
+    + '<button class="btn ghost" id="rescan">重新扫描</button>'
+    + '<button class="btn primary" id="apply"'+(picked.length?'':' disabled')+'>移入回收站</button>';
+  $('rescan').onclick = function(){ scan(true); };
+  $('apply').onclick = openApplyConfirm;
+}
+function ruleCard(r){
+  var pickable = r.status === 'ready';
+  var picked = S.selected.has(r.id);
+  var cls = 'rule' + (picked?' picked':'') + (pickable?'':' locked');
+  var stTxt = {ready:'可清理','need-admin':'需管理员',missing:'不存在',recent:'近期有写入',
+               empty:'空目录',BLOCKED:'已拦截'}[r.status] || r.status;
+  var meta = [r.files+' 个文件'];
+  if (r.rebuild) meta.push(r.rebuild);
+  if (r.rebuild_cmd) meta.push('更稳：'+r.rebuild_cmd);
+  var notes = [];
+  if (r.note) notes.push('<div class="rule-note">注：'+esc(r.note)+'</div>');
+  (r.reasons||[]).forEach(function(x){ notes.push('<div class="rule-note warn">禁区：'+esc(x)+'</div>'); });
+  if (r.errors) notes.push('<div class="rule-note">'+r.errors+' 个条目读不到（占用/权限），仅影响统计</div>');
+  return '<div class="'+cls+'">'
+    + '<input class="chk" type="checkbox" data-id="'+esc(r.id)+'" '+(picked?'checked':'')+' '+(pickable?'':'disabled')+'>'
+    + '<div class="rule-main">'
+      + '<div class="rule-head">'
+        + '<span class="lv lv'+r.level+'">L'+r.level+'</span>'
+        + '<span class="name" title="'+esc(r.name)+'">'+esc(r.name)+'</span>'
+        + '<span class="st '+esc(r.status.toLowerCase())+'">'+esc(stTxt)+'</span>'
+      + '</div>'
+      + '<div class="rule-meta">'+meta.map(esc).join('<span class="dot">·</span>')+'</div>'
+      + '<div class="rule-paths">'+r.paths.map(function(p){
+          return '<code title="'+esc(p)+'">'+esc(p)+'</code>'; }).join('')+'</div>'
+      + notes.join('')
+    + '</div>'
+    + '<div class="rule-size">'+esc(r.size)+'<small>可释放</small></div>'
+  + '</div>';
+}
+function renderCleanup(){
+  var ready = S.rules.filter(function(r){ return r.status==='ready'; });
+  var total = ready.reduce(function(a,r){ return a + r.size_bytes; }, 0);
+  var tiles = '<div class="tiles">'
+    + '<div class="tile hl"><div class="k">可清理合计</div><div class="v">'+fmt(total)+'</div><div class="d">仅统计状态为「可清理」的规则</div></div>'
+    + '<div class="tile"><div class="k">规则数量</div><div class="v">'+S.rules.length+'<small>条</small></div><div class="d">level ≤ '+S.level+'</div></div>'
+    + '<div class="tile"><div class="k">硬禁区</div><div class="v">'+(S.st?S.st.deny_paths.length:0)+'<small>条</small></div><div class="d">HARD_DENY 写在代码里</div></div>'
+    + '</div>';
+  var seg = '<div class="seg">'
+    + [1,2,3].map(function(n){
+        return '<button data-level="'+n+'" class="'+(S.level===n?'on':'')+'">'
+          + (n===1?'L1 安全':n===2?'L2 需确认':'L3 会丢数据')+'</button>'; }).join('')
+    + '</div>';
+  var head = '<div class="section-head"><div><h2>清理规则</h2>'
+    + '<p>扫描是只读的。勾选后点「移入回收站」，输入令牌才真正动手。</p></div>'+seg+'</div>';
+  var groups = '';
+  [1,2,3].forEach(function(lv){
+    var rows = S.rules.filter(function(r){ return r.level===lv; });
+    if (!rows.length || lv > S.level) return;
+    groups += '<div class="group-title">LEVEL '+lv+' · '+(S.st&&S.st.levels?esc(S.st.levels[lv]||''):'')+'</div>'
+      + rows.map(ruleCard).join('');
+  });
+  $('view').innerHTML = tiles + head + (groups || '<div class="empty">没有匹配的规则</div>');
+  Array.prototype.forEach.call(document.querySelectorAll('.seg button'), function(b){
+    b.onclick = function(){ S.level = +b.dataset.level; S.selected.clear(); scan(false); };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.chk'), function(c){
+    c.onchange = function(){
+      if (c.checked) S.selected.add(c.dataset.id); else S.selected.delete(c.dataset.id);
+      renderCleanup();
+    };
+  });
+  renderActions();
+}
+async function scan(refresh){
+  if (S.busy) return; S.busy = true;
+  $('actions').innerHTML = '<div class="sel"><span class="loading"></span> 正在扫描…</div>';
+  if (!S.rules.length || refresh) {
+    $('view').innerHTML = '<div class="empty"><span class="big">◌</span>'
+      + '<span class="loading"></span> 正在扫描 level ≤ '+S.level+' 的规则…'
+      + (S.level>1 ? '<br><span style="font-size:12px">L2/L3 有几十万个小文件，约需十几秒</span>' : '')
+      + '</div>';
+  }
+  try {
+    var d = await api('/api/scan?level='+S.level+(refresh?'&refresh=1':''));
+    S.rules = d.rules;
+    var valid = new Set(S.rules.filter(function(r){return r.status==='ready';}).map(function(r){return r.id;}));
+    Array.from(S.selected).forEach(function(id){ if(!valid.has(id)) S.selected.delete(id); });
+    setPage('cleanup');
+    S.st = await api('/api/state'); renderTop();
+    if (refresh) toast('扫描完成');
+  } catch(e) { toast('扫描失败：'+e.message, true); renderActions(); }
+  finally { S.busy = false; }
+}
+
+/* ---------- modal ---------- */
+function closeModal(){ $('backdrop').classList.remove('on'); S.modal=null; }
+function showModal(cfg){
+  S.modal = cfg;
+  $('mTitle').textContent = cfg.title;
+  $('mWarn').textContent = cfg.warn || '';
+  $('mBody').innerHTML = cfg.body;
+  $('mTokenWrap').style.display = cfg.token ? 'block' : 'none';
+  $('mTokenLabel').textContent = '请输入 '+cfg.token+' 继续（界面与服务端各校验一次）';
+  $('mToken').placeholder = cfg.token;
+  $('mToken').value = '';
+  $('mOk').textContent = cfg.okText || '确认执行';
+  $('mOk').className = 'btn ' + (cfg.danger ? 'danger' : 'primary');
+  $('backdrop').classList.add('on');
+  if (cfg.token) setTimeout(function(){ $('mToken').focus(); }, 30);
+}
+$('mCancel').onclick = closeModal;
+$('backdrop').onclick = function(e){ if (e.target === $('backdrop')) closeModal(); };
+$('mOk').onclick = async function(){
+  var cfg = S.modal; if (!cfg) return;
+  if (cfg.token && $('mToken').value.trim() !== cfg.token) {
+    toast('令牌不对，未执行任何动作', true); return;
+  }
+  $('mOk').disabled = true;
+  try { await cfg.run(); closeModal(); }
+  catch(e){ toast(e.message, true); }
+  finally { $('mOk').disabled = false; }
+};
+function openApplyConfirm(){
+  var picked = S.rules.filter(function(r){ return S.selected.has(r.id); });
+  if (!picked.length) return;
+  var bytes = picked.reduce(function(a,r){return a+r.size_bytes;},0);
+  var token = S.level===1 ? 'DELETE' : 'DELETE'+S.level;
+  var list = picked.map(function(r){ return '<li>'+esc(r.id)+' · '+esc(r.size)+' · '+esc(r.name)+'</li>'; }).join('');
+  var body = '<p>将把下面 <b>'+picked.length+'</b> 项（合计 <b>'+fmt(bytes)+'</b>）'
+    + '<b>移入回收站</b>。这一步可撤销，不会永久删除。</p>'
+    + '<ul>'+list+'</ul>'
+    + '<p>真正腾出空间，需要到「回收站」页再执行一次永久清空。</p>'
+    + (S.level>=2 ? '<div class="tip">level '+S.level+'：这些项要联网重下或会丢数据，务必看清上面每条规则的路径与说明。</div>' : '');
+  showModal({ title:'确认移入回收站', warn:'此操作非常危险，可能导致不可逆的数据丢失！',
+              body:body, token:token, okText:'移入回收站',
+              run: async function(){
+                var r = await api('/api/apply', { method:'POST',
+                  body:{ level:S.level, ids:picked.map(function(x){return x.id;}), confirm:token } });
+                toast('完成：ok='+r.ok+'，failed='+r.failed+'（C 盘 '+r.free_before+' → '+r.free_after+' GiB）');
+                S.selected.clear(); await scan(true);
+              } });
+}
+
+/* ---------- deny page ---------- */
+function renderDeny(){
+  var s = S.st || {};
+  var rows = (s.deny_paths||[]).map(function(p){
+    return '<div class="deny-row"><span class="lk">⛨</span><code>'+esc(p)+'</code></div>'; }).join('');
+  $('view').innerHTML =
+      '<div class="section-head"><div><h2>硬禁区</h2><p>HARD_DENY 写在 guardian.py 的常量里，'
+    + '不在 rules.json —— 规则表写错也打不开这些路径。</p></div></div>'
+    + '<div class="panel"><h3>为什么这么设计</h3>'
+      + '<p>① NET 程序集缓存：清了 NGEN 会在后台重建 NativeImages_*，实测反吃约 2.5 GiB。</p>'
+      + '<p>② Windows 事件日志：2026-11-07 那次 Dism++ 清理把它清空，11/4–11/6 的蓝屏证据在系统里就查不到了。</p>'
+      + '<p>③ WinSxS / Installer / 系统转储 / 用户文档 / 页面文件：删了会破坏更新、修复或取证。</p>'
+      + '<p>④ 还会拦截「把受保护路径的父目录当目标」——即使规则表被改成 C:\\Windows，也进不了计划。</p>'
+      + '<p>启动时跑 18 条自测断言，任一失败直接拒绝运行。当前状态：<b style="color:var(--accent)">'
+      + (s.deny_ok?'全部 PASS':'FAIL')+'</b>。</p></div>'
+    + '<div class="panel"><h3>受保护路径（'+(s.deny_paths||[]).length+' 条）</h3>'+rows+'</div>';
+}
+
+/* ---------- recycle page ---------- */
+async function loadRecycle(){
+  $('view').innerHTML = '<div class="empty"><span class="loading"></span> 正在读取回收站…</div>';
+  try { S.recycle = await api('/api/recycle'); renderRecycle(); }
+  catch(e){ $('view').innerHTML = '<div class="empty">'+esc(e.message)+'</div>'; }
+}
+function renderRecycle(){
+  var d = S.recycle || {items:[],count:0,size:'0 B'};
+  var rows = d.items.map(function(i){
+    return '<div class="recycle-row"><span class="sz">'+esc(i.size_h)+'</span>'
+      + '<span class="p" title="'+esc(i.path)+'">'+esc(i.path||'(未知来源)')+'</span></div>'; }).join('');
+  $('view').innerHTML =
+      '<div class="section-head"><div><h2>回收站</h2>'
+    + '<p>清空前先把清单摊开看一遍；坏项会跳过，不会弹模态框卡住。</p></div>'
+    + '<button class="btn danger" id="purgeBtn"'+(d.count?'':' disabled')+'>永久清空 C 盘回收站</button></div>'
+    + '<div class="tiles"><div class="tile hl"><div class="k">条目数</div><div class="v">'+d.count+'<small>项</small></div><div class="d">C 盘回收站</div></div>'
+    + '<div class="tile"><div class="k">合计</div><div class="v">'+esc(d.size)+'</div><div class="d">仅元数据统计</div></div>'
+    + '<div class="tile"><div class="k">方式</div><div class="v" style="font-size:16px">$I / $R 逐批删</div>'
+    + '<div class="d">不用 SHEmptyRecycleBinW（会弹模态框卡死）</div></div></div>'
+    + '<div class="panel"><h3>清单（最多列 200 条）</h3>'
+    + (rows || '<div class="empty">回收站是空的</div>') + '</div>';
+  $('purgeBtn').onclick = function(){
+    showModal({ title:'永久清空回收站', warn:'此操作非常危险，可能导致不可逆的数据丢失！',
+      body:'<p>C 盘回收站共 <b>'+d.count+'</b> 项、约 <b>'+esc(d.size)+'</b>。'
+        + '删除后无法撤销，请确认上面的清单里没有还要找回的东西。</p>'
+        + '<div class="tip">这一步只处理 C 盘；需要连 D 盘一起清，用命令行的 --purge --drives C,D。</div>',
+      token:'PURGE', danger:true, okText:'永久清空',
+      run: async function(){
+        var r = await api('/api/purge', {method:'POST', body:{drives:['C'], confirm:'PURGE'}});
+        toast('清空完成：ok='+r.ok+'，failed='+r.failed+'，C 盘剩 '+r.c_free+' GiB');
+        await loadRecycle(); S.st = await api('/api/state'); renderTop();
+      } });
+  };
+}
+
+/* ---------- logs page ---------- */
+async function loadLogs(){
+  $('view').innerHTML = '<div class="empty"><span class="loading"></span> 正在读取日志…</div>';
+  try { S.logs = await api('/api/logs'); renderLogs(); }
+  catch(e){ $('view').innerHTML = '<div class="empty">'+esc(e.message)+'</div>'; }
+}
+function renderLogs(){
+  var d = S.logs || {files:[],tail:[],actions:[]};
+  $('view').innerHTML =
+      '<div class="section-head"><div><h2>运行日志</h2>'
+    + '<p>每行 flush + fsync；动作另有 actions.jsonl 追加流水，卡住也不丢记录。</p></div>'
+    + '<button class="btn ghost" id="reloadLogs">刷新</button></div>'
+    + '<div class="panel"><h3>日志文件（'+d.files.length+'）</h3><div class="kv">'
+    + d.files.map(function(f){ return '<code>'+esc(f.name)+' · '+fmt(f.size)+'</code>'; }).join('')
+    + '</div></div>'
+    + '<div class="panel"><h3>最新日志末尾</h3><div class="logbox">'+esc((d.tail||[]).join('\n')||'(空)')+'</div></div>'
+    + '<div class="panel"><h3>动作流水</h3><div class="logbox">'+esc((d.actions||[]).join('\n')||'(还没有执行过删除动作)')+'</div></div>';
+  $('reloadLogs').onclick = loadLogs;
+}
+
+/* ---------- chrome ---------- */
+$('nav').onclick = function(e){
+  var b = e.target.closest('button[data-page]'); if (b) setPage(b.dataset.page);
+};
+$('theme').onclick = function(){
+  var next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem('dg-theme', next); } catch(e){}
+};
+$('quit').onclick = function(){
+  showModal({ title:'退出界面服务', warn:'',
+    body:'<p>关闭后这个窗口会失去后端。要再用，重新双击「5-打开图形界面.bat」即可。</p>'
+       + '<p>清理规则、日志、回收站内容都不受影响。</p>',
+    okText:'退出', danger:true,
+    run: async function(){
+      try { await api('/api/quit', {method:'POST', body:{}}); } catch(e){}
+      document.body.innerHTML = '<div class="empty" style="padding-top:22vh">'
+        + '<span class="big">✓</span>界面已关闭，可以关掉这个窗口了。<br>重新打开请双击启动器。</div>';
+    } });
+};
+
+(async function init(){
+  try {
+    var t = localStorage.getItem('dg-theme');
+    if (t) document.documentElement.dataset.theme = t;
+  } catch(e){}
+  try {
+    S.st = await api('/api/state');
+    renderTop();
+    await scan(false);
+  } catch(e){
+    $('view').innerHTML = '<div class="empty">初始化失败：'+esc(e.message)+'</div>';
+  }
+})();
+</script>
+</body>
+</html>

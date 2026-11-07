@@ -23,7 +23,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 PY = r"C:\Users\36230\.workbuddy\binaries\python\versions\3.13.12\python.exe"
+PYW = r"C:\Users\36230\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe"
 APP = r"D:\4rchive\Code\disk-guardian\guardian.py"
+SRV = r"D:\4rchive\Code\disk-guardian\ui\server.py"
 OUT_DIR = r"D:\4rchive\Code\disk-guardian\out"
 
 DEFAULT_TARGETS = [
@@ -34,6 +36,14 @@ DEFAULT_TARGETS = [
 NOAPP = [
     ":NOAPP",
     "echo 找不到主程序：%APP%",
+    "echo 请确认项目还在 D:\\4rchive\\Code\\disk-guardian\\",
+    "pause",
+    "exit /b 1",
+]
+
+NOSRV = [
+    ":NOSRV",
+    "echo 找不到界面服务：%SRV%",
     "echo 请确认项目还在 D:\\4rchive\\Code\\disk-guardian\\",
     "pause",
     "exit /b 1",
@@ -111,6 +121,19 @@ BATS = {
         "pause",
         "exit /b 1",
     ],
+
+    "5-打开图形界面.bat": HEAD + [
+        "title disk-guardian 图形界面",
+        'set "PYW=__PYW__"',
+        'set "SRV=__SRV__"',
+        'if not exist "%PYW%" set "PYW=pythonw"',
+        'if not exist "%SRV%" goto :NOSRV',
+        "echo 正在启动 disk-guardian 图形界面，浏览器窗口稍后自动出现。",
+        "echo 关闭请在界面右上角点「退出」；不要直接关服务进程。",
+        'start "" "%PYW%" "%SRV%"',
+        "timeout /t 2 >nul",
+        "exit /b 0",
+    ] + NOSRV,
 }
 
 
@@ -156,7 +179,9 @@ def main(argv):
             target.mkdir(parents=True, exist_ok=True)
         for name, lines in BATS.items():
             rendered = [ln.replace("__PY__", PY)
+                          .replace("__PYW__", PYW)
                           .replace("__APP__", APP)
+                          .replace("__SRV__", SRV)
                           .replace("__OUT__", OUT_DIR) for ln in lines]
             expected = encode(rendered)
             assert "if (" not in "\n".join(rendered), \

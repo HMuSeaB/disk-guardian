@@ -10,6 +10,25 @@
 - 定位：**Dism++ 的补集，不是替代品**。Dism++ 管 WinSxS / 事件日志 / 还原点；
   本工具管 shader / 包管理器缓存 / 构建产物。
 
+## 图形界面（2026-11-07 v0）
+
+- 用户要「像 Dism++ 一样的图形化、现代化」。做了 `ui/server.py`（标准库
+  `http.server`，仅回环、一次性令牌、首页也校验、`--app=` 窗口、**不自动退出**）
+  + `ui/assets/index.html`（单文件、离线、深浅主题、四个页面），双击入口
+  `SystemTools\disk-guardian\5-打开图形界面.bat`（用 `pythonw.exe`）。
+- **魔改 Dism++ 不可行**：`api.github.com/repos/Chuyu-Team/Dism++` 是 404，
+  组织 24 个仓库里没有主程序源码，开源的只有 `Data.xml` / 语言包 / 插件文档 /
+  周边 C++ 库，主程序是闭源单 exe。中文推广站写「MIT 开源」不可信。
+  （纠正此前「Dism++ 开源」的说法。）
+- 同类轮子源码级核对见 `docs/调研-2026-11-07.md`：`disk-butler`
+  （Tauri2+Rust，650 stars）已做白名单制 / 只读报告 / 单测，但**用了
+  `SHEmptyRecycleBinW`**、永久删、没有 `winevt`/`assembly` 禁区概念。
+  我们的差异化是「事故取证结论 → 不可绕过的禁区 + 两步删除 + 动作流水」。
+- CLI 与 GUI **共用 `guardian.execute_rules`**，前端只传 id；后端用刚重建的
+  plan 复核等级/状态/禁区。别复制第二份删除逻辑。
+- v0 依赖本机托管 Python，不是单 exe；形态确认后可再用 wintuner 的
+  Go + 内嵌网页骨架包一层。
+
 ## 不可动摇的设计约束
 
 1. 默认只读预览。必须 `--apply` + 交互令牌（`DELETE` / `DELETE2` / `DELETE3`）。
