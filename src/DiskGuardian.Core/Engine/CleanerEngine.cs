@@ -75,6 +75,103 @@ public sealed class CleanerEngine
         return $"{bytes} B";
     }
 
+    public PlanRow ScanRule(RuleItem rule, bool? isAdmin = null)
+    {
+        var admin = isAdmin ?? IsAdmin();
+        var resolvedPaths = new List<string>();
+
+        // 1. 固定路径解析
+        if (rule.Paths != null)
+        {
+            foreach (var p in rule.Paths)
+            {
+                try
+                {
+                    resolvedPaths.Add(HardDeny.Expand(p, Variables));
+                }
+                catch { }
+            }
+        }
+
+        // 2. 动态发现路径解析
+        if (rule.Discover != null)
+        {
+            var spec = new DiscoverSpec(
+                Roots: rule.Discover.Roots,
+                DirName: rule.Discover.Dirname,
+                RequireSibling: rule.Discover.RequireSibling,
+                MaxDepth: rule.Discover.MaxDepth,
+                ExcludeContains: rule.Discover.ExcludeContains
+            );
+
+            var hits = ProjectDiscoverer.DiscoverPaths(spec, Variables);
+            resolvedPaths.AddRange(hits);
+        }
+
+        // 3. 安全禁区检查
+        var reasons = new List<string>();
+        foreach (var p in resolvedPaths)
+        {
+            var r = HardDeny.CheckTarget(p, rule.AllowInsideDeny, rule.Level, Variables);
+            reasons.AddRange(r);
+        }
+
+        // 4. 统计物理路径
+        var existing = resolvedPaths.Where(p => Directory.Exists(p) || File.Exists(p)).ToList();
+        long totalBytes = 0;
+        int totalFiles = 0;
+        int totalErrors = 0;
+
+        if (reasons.Count == 0 && existing.Count > 0)
+        {
+            if (rule.Mode == "old-files" && rule.KeepDays > 0)
+            {
+                var oldFiles = CollectOldFiles(existing, rule.KeepDays);
+                totalFiles = oldFiles.Count;
+                foreach (var f in oldFiles)
+                {
+                    try { totalBytes += new FileInfo(f).Length; } catch { totalErrors++; }
+                }
+            }
+            else
+            {
+                foreach (var p in existing)
+                {
+                    var (b, f, err) = ScanTree(p);
+                    totalBytes += b;
+                    totalFiles += f;
+                    totalErrors += err;
+                }
+            }
+        }
+
+        string status;
+        if (reasons.Count > 0) status = "blocked";
+        else if (existing.Count == 0) status = "clean";
+        else if (!admin && IsSystemRestricted(resolvedPaths)) status = "need-admin";
+        else status = "ready";
+
+        return new PlanRow
+        {
+            Id = rule.Id,
+            Name = rule.Name,
+            Level = rule.Level,
+            ResolvedPaths = resolvedPaths,
+            ExistingPaths = existing,
+            SizeBytes = totalBytes,
+            SizeHuman = HumanSize(totalBytes),
+            FilesCount = totalFiles,
+            ErrorsCount = totalErrors,
+            Status = status,
+            BlockReasons = reasons.Distinct().ToList(),
+            Rebuild = rule.Rebuild,
+            Note = rule.Note,
+            Mode = rule.Mode,
+            KeepDays = rule.KeepDays,
+            IsSelected = status == "ready"
+        };
+    }
+
     public List<PlanRow> BuildPlan(int maxLevel = 1)
     {
         var plan = new List<PlanRow>();
@@ -83,99 +180,24 @@ public sealed class CleanerEngine
         foreach (var rule in Config.Rules)
         {
             if (rule.Level > maxLevel) continue;
+            plan.Add(ScanRule(rule, admin));
+        }
 
-            var resolvedPaths = new List<string>();
+        return plan;
+    }
 
-            // 1. 固定路径解析
-            if (rule.Paths != null)
+    public List<PlanRow> BuildPlan(IEnumerable<string> ruleIds)
+    {
+        var plan = new List<PlanRow>();
+        var admin = IsAdmin();
+        var set = new HashSet<string>(ruleIds, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var rule in Config.Rules)
+        {
+            if (set.Contains(rule.Id))
             {
-                foreach (var p in rule.Paths)
-                {
-                    try
-                    {
-                        resolvedPaths.Add(HardDeny.Expand(p, Variables));
-                    }
-                    catch { }
-                }
+                plan.Add(ScanRule(rule, admin));
             }
-
-            // 2. 动态发现路径解析
-            if (rule.Discover != null)
-            {
-                var spec = new DiscoverSpec(
-                    Roots: rule.Discover.Roots,
-                    DirName: rule.Discover.Dirname,
-                    RequireSibling: rule.Discover.RequireSibling,
-                    MaxDepth: rule.Discover.MaxDepth,
-                    ExcludeContains: rule.Discover.ExcludeContains
-                );
-
-                var hits = ProjectDiscoverer.DiscoverPaths(spec, Variables);
-                resolvedPaths.AddRange(hits);
-            }
-
-            // 3. 安全禁区检查
-            var reasons = new List<string>();
-            foreach (var p in resolvedPaths)
-            {
-                var r = HardDeny.CheckTarget(p, rule.AllowInsideDeny, rule.Level, Variables);
-                reasons.AddRange(r);
-            }
-
-            // 4. 统计物理路径
-            var existing = resolvedPaths.Where(p => Directory.Exists(p) || File.Exists(p)).ToList();
-            long totalBytes = 0;
-            int totalFiles = 0;
-            int totalErrors = 0;
-
-            if (reasons.Count == 0 && existing.Count > 0)
-            {
-                if (rule.Mode == "old-files" && rule.KeepDays > 0)
-                {
-                    var oldFiles = CollectOldFiles(existing, rule.KeepDays);
-                    totalFiles = oldFiles.Count;
-                    foreach (var f in oldFiles)
-                    {
-                        try { totalBytes += new FileInfo(f).Length; } catch { totalErrors++; }
-                    }
-                }
-                else
-                {
-                    foreach (var p in existing)
-                    {
-                        var (b, f, err) = ScanTree(p);
-                        totalBytes += b;
-                        totalFiles += f;
-                        totalErrors += err;
-                    }
-                }
-            }
-
-            string status;
-            if (reasons.Count > 0) status = "blocked";
-            else if (existing.Count == 0) status = "clean";
-            else if (!admin && IsSystemRestricted(resolvedPaths)) status = "need-admin";
-            else status = "ready";
-
-            plan.Add(new PlanRow
-            {
-                Id = rule.Id,
-                Name = rule.Name,
-                Level = rule.Level,
-                ResolvedPaths = resolvedPaths,
-                ExistingPaths = existing,
-                SizeBytes = totalBytes,
-                SizeHuman = HumanSize(totalBytes),
-                FilesCount = totalFiles,
-                ErrorsCount = totalErrors,
-                Status = status,
-                BlockReasons = reasons.Distinct().ToList(),
-                Rebuild = rule.Rebuild,
-                Note = rule.Note,
-                Mode = rule.Mode,
-                KeepDays = rule.KeepDays,
-                IsSelected = status == "ready"
-            });
         }
 
         return plan;

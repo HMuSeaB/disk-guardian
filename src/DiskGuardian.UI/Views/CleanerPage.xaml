@@ -17,34 +17,49 @@
         <!-- 标题 -->
         <StackPanel Grid.Row="0" Spacing="4">
             <TextBlock Text="空间规则清理" FontSize="26" FontWeight="SemiBold"/>
-            <TextBlock Text="严格遵循只读预览与安全两步删除原则，所有清理动作均先移入回收站" 
+            <TextBlock Text="按需选择规则精准扫描，拒绝全盘强制卡顿；所有清理动作均先安全移入回收站" 
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
         </StackPanel>
 
-        <!-- 等级控制栏 -->
+        <!-- 选项预设与扫描控制栏 -->
         <Border Grid.Row="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
-                CornerRadius="8" Padding="12,10">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+                CornerRadius="8" Padding="14,12">
+            <Grid RowSpacing="10">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                    <TextBlock Text="扫描级别:" VerticalAlignment="Center" FontWeight="SemiBold"/>
-                    <ComboBox x:Name="LevelCombo" SelectedIndex="0" SelectionChanged="LevelCombo_SelectionChanged">
-                        <ComboBoxItem Content="Level 1 (常规快速缓存，安全无痛)"/>
-                        <ComboBoxItem Content="Level 2 (推荐，含 D 盘 Rust/Node 编译产物)"/>
-                        <ComboBoxItem Content="Level 3 (深层项目日志，激进模式)"/>
-                    </ComboBox>
-                </StackPanel>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10">
-                    <ProgressRing x:Name="ScanRing" IsActive="False" Width="20" Height="20"/>
-                    <Button Content="重新扫描" Click="ScanButton_Click" Style="{ThemeResource AccentButtonStyle}"/>
-                </StackPanel>
+                    <!-- 左侧：级别筛选与快捷预设 -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="预设级别:" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                        <ComboBox x:Name="LevelCombo" SelectedIndex="0" SelectionChanged="LevelCombo_SelectionChanged" Width="140">
+                            <ComboBoxItem Content="Level 1 (常规)"/>
+                            <ComboBoxItem Content="Level 2 (推荐)"/>
+                            <ComboBoxItem Content="Level 3 (完整)"/>
+                        </ComboBox>
+
+                        <Button Content="仅L1快速" Click="SelectL1_Click"/>
+                        <Button Content="全选" Click="SelectAll_Click"/>
+                        <Button Content="清空" Click="DeselectAll_Click"/>
+                    </StackPanel>
+
+                    <!-- 右侧：扫描状态指示与显式扫描触发按钮 -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                        <ProgressRing x:Name="ScanRing" IsActive="False" Width="20" Height="20"/>
+                        <TextBlock x:Name="ScanStatusText" Text="已就绪，请勾选需要扫描的项" VerticalAlignment="Center"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12"/>
+                        <Button x:Name="ScanButton" Content="开始扫描勾选项" Click="ScanButton_Click" 
+                                Style="{ThemeResource AccentButtonStyle}" Padding="16,6"/>
+                    </StackPanel>
+                </Grid>
             </Grid>
         </Border>
 
@@ -55,30 +70,38 @@
                   CornerRadius="8" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
             <ListView.ItemTemplate>
                 <DataTemplate>
-                    <Grid Padding="12,10" ColumnSpacing="16">
+                    <Grid Padding="14,10" ColumnSpacing="16">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
+                        <!-- 选择勾选框 -->
                         <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected, Mode=TwoWay}" 
-                                  IsEnabled="{Binding IsReady}" VerticalAlignment="Center"/>
+                                  VerticalAlignment="Center"/>
 
-                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                        <!-- 规则详情 -->
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14"/>
                                 <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="6,2">
-                                    <TextBlock Text="{Binding Id}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    <TextBlock Text="{Binding LevelDisplay}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 </Border>
+                                <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="6,2">
+                                    <TextBlock Text="{Binding TypeBadge}" FontSize="11" Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+                                </Border>
+                                <TextBlock Text="{Binding SizeHint}" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center"/>
                             </StackPanel>
                             <TextBlock Text="{Binding Note}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                             <TextBlock Text="{Binding Rebuild}" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                         </StackPanel>
 
+                        <!-- 容量与扫描状态 -->
                         <StackPanel Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="4">
-                            <TextBlock Text="{Binding SizeHuman}" FontWeight="Bold" FontSize="15" HorizontalAlignment="Right"/>
-                            <TextBlock Text="{Binding Status}" FontSize="11" HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <TextBlock Text="{Binding SizeDisplay}" FontWeight="Bold" FontSize="15" HorizontalAlignment="Right"/>
+                            <TextBlock Text="{Binding StatusDisplay}" FontSize="11" HorizontalAlignment="Right" 
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                         </StackPanel>
                     </Grid>
                 </DataTemplate>
@@ -97,13 +120,14 @@
 
                 <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
                     <StackPanel Orientation="Horizontal" Spacing="6">
-                        <TextBlock Text="已勾选可释放:" FontSize="14"/>
+                        <TextBlock Text="已扫描勾选可释放:" FontSize="14"/>
                         <TextBlock x:Name="TotalSizeText" Text="0 B" FontSize="16" FontWeight="Bold" Foreground="{ThemeResource AccentAAFillColorDefaultBrush}"/>
                     </StackPanel>
-                    <TextBlock Text="执行清理会将选中项安全移动到回收站（可随时撤销还原）" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <TextBlock Text="点击【移入回收站】将仅处理已扫描且有可释放体积的勾选项（安全可撤销）" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 </StackPanel>
 
-                <Button Grid.Column="1" Content="移入回收站 (安全清理)" Click="ApplyButton_Click" Style="{ThemeResource AccentButtonStyle}" Padding="20,10"/>
+                <Button x:Name="ApplyButton" Grid.Column="1" Content="移入回收站 (安全清理)" 
+                        Click="ApplyButton_Click" Style="{ThemeResource AccentButtonStyle}" Padding="20,10"/>
             </Grid>
         </Border>
     </Grid>
