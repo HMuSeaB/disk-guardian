@@ -15,9 +15,10 @@ echo 动作是移入回收站，可以撤销，不会永久删除。
 echo 要真正腾出空间，请另跑 3-清空回收站.bat。
 echo.
 "%PY%" "%APP%" --apply --level 1 --json-report
+set "RC=%errorlevel%"
 echo.
 pause
-exit /b 0
+exit /b %RC%
 :NOAPP
 echo 找不到主程序：%APP%
 echo 请确认项目还在 D:\4rchive\Code\disk-guardian\

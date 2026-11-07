@@ -56,12 +56,13 @@ BATS = {
         'if not exist "%PY%" set "PY=python"',
         'if not exist "%APP%" goto :NOAPP',
         '"%PY%" "%APP%" --json-report',
+        'set "RC=%errorlevel%"',
         "echo.",
         "echo 以上是只读预览，没有删除任何东西。",
         "echo 报告在 __OUT__\\last_report.json",
         "echo.",
         "pause",
-        "exit /b 0",
+        "exit /b %RC%",
     ] + NOAPP,
 
     "2-执行安全清理.bat": HEAD + [
@@ -76,9 +77,10 @@ BATS = {
         "echo 要真正腾出空间，请另跑 3-清空回收站.bat。",
         "echo.",
         '"%PY%" "%APP%" --apply --level 1 --json-report',
+        'set "RC=%errorlevel%"',
         "echo.",
         "pause",
-        "exit /b 0",
+        "exit /b %RC%",
     ] + NOAPP,
 
     "3-清空回收站.bat": HEAD + [
@@ -92,9 +94,10 @@ BATS = {
         "echo 会先列出回收站清单，再要求输入 PURGE 确认。",
         "echo.",
         '"%PY%" "%APP%" --purge --json-report',
+        'set "RC=%errorlevel%"',
         "echo.",
         "pause",
-        "exit /b 0",
+        "exit /b %RC%",
     ] + NOAPP,
 
     "4-打开报告目录.bat": HEAD + [

@@ -14,9 +14,10 @@ echo 这一步是永久删除，不可撤销。
 echo 会先列出回收站清单，再要求输入 PURGE 确认。
 echo.
 "%PY%" "%APP%" --purge --json-report
+set "RC=%errorlevel%"
 echo.
 pause
-exit /b 0
+exit /b %RC%
 :NOAPP
 echo 找不到主程序：%APP%
 echo 请确认项目还在 D:\4rchive\Code\disk-guardian\
