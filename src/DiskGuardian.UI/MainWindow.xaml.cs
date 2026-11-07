@@ -1,18 +1,20 @@
 using System;
 using DiskGuardian.UI.Views;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using WinUIEx;
 
 namespace DiskGuardian.UI;
 
-public sealed partial class MainWindow : WindowEx
+public sealed partial class MainWindow : Window
 {
     public MainWindow()
     {
         this.InitializeComponent();
 
-        // 窗口初始化：居中显示，设置自定义标题栏
+        // 窗口初始化：居中显示，设置尺寸与自定义标题栏
         this.CenterOnScreen();
+        this.SetWindowSize(1280, 860);
         this.ExtendsContentIntoTitleBar = true;
         this.SetTitleBar(AppTitleBar);
 

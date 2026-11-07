@@ -10,6 +10,8 @@
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <UseWinUI>true</UseWinUI>
     <WindowsPackageType>None</WindowsPackageType>
+    <AppxPackage>false</AppxPackage>
+    <PublishSingleFile>false</PublishSingleFile>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <EnableMsixTooling>true</EnableMsixTooling>
