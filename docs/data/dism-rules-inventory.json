@@ -1,0 +1,1185 @@
+[
+  {
+    "name": "#被取代的WinSxS组件",
+    "level": "2",
+    "group": "#过期文件",
+    "description": "#清理被取代的组件并减少组件存储的大小。",
+    "warnings": [
+      "#清理后将无法卸载更新，如果有卸载更新需求请勿使用此选项。",
+      "#清理后将无法卸载更新，此外ResetBase模式跟系统重置功能有冲突，如果有卸载更新或者系统重置需求请勿使用此选项。",
+      "#清理后将无法卸载更新，如果有卸载更新需求请勿使用此选项。"
+    ],
+    "scans": 3,
+    "procs": [
+      "DismComponentCleanup"
+    ],
+    "work": [
+      "15",
+      "15",
+      "50"
+    ],
+    "custom_procs": 3,
+    "has_path": false,
+    "sample_paths": []
+  },
+  {
+    "name": "#以前的Windows系统",
+    "level": "2",
+    "group": "#过期文件",
+    "description": "#在系统升级或者还原后留下的系统备份。",
+    "warnings": [
+      "#删除后你将无法回滚到以前安装的系统。"
+    ],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%SystemDrive%\\Windows.old"
+    ]
+  },
+  {
+    "name": "#以前的Dism++组件",
+    "level": "3",
+    "group": "#过期文件",
+    "description": "#以前版本的Dism++使用的文件。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%0%Config\\",
+      "%0%Config\\Languages",
+      "%0%Config\\Plugins",
+      "%0%Config\\amd64"
+    ]
+  },
+  {
+    "name": "#360浏览器老版本备份",
+    "level": "2",
+    "group": "#过期文件",
+    "description": "#360浏览器在升级到新版本后留下的备份文件，在故障时回滚到老版本。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%APPDATA%\\360se6\\Application",
+      "%Root%360se.exe)"
+    ]
+  },
+  {
+    "name": "#阿里旺旺老版本备份",
+    "level": "2",
+    "group": "#过期文件",
+    "description": "#阿里旺旺在升级到新版本后留下的备份文件，在故障时回滚到老版本。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%Root%Aliim.ini"
+    ]
+  },
+  {
+    "name": "#阿里亲淘老版本备份",
+    "level": "2",
+    "group": "#过期文件",
+    "description": "#阿里亲淘在升级到新版本后留下的备份文件，在故障时回滚到老版本。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%Root%AliQinTao.ini"
+    ]
+  },
+  {
+    "name": "#Chrome浏览器老版本备份（by Honry）",
+    "level": "2",
+    "group": "#过期文件",
+    "description": "#Chrome浏览器升级到新版本后留下的备份文件，在故障时回滚到老版本。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%Root%Chrome.exe)"
+    ]
+  },
+  {
+    "name": "#Opera浏览器老版本备份（by MS-PC2）",
+    "level": "2",
+    "group": "#过期文件",
+    "description": "#Opera浏览器升级到新版本后留下的备份文件，在故障时回滚到老版本。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%Root%Launcher.exe)"
+    ]
+  },
+  {
+    "name": "#PPLive老版本备份（by 何超）",
+    "level": "2",
+    "group": "#过期文件",
+    "description": "#PPLive在升级到新版本后留下的备份文件，在故障时回滚到老版本。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%Root%version.dat"
+    ]
+  },
+  {
+    "name": "#酷狗音乐老版本备份（by 何超）",
+    "level": "2",
+    "group": "#过期文件",
+    "description": "#酷狗音乐在升级到新版本后留下的备份文件，在故障时回滚到老版本。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": false,
+    "sample_paths": []
+  },
+  {
+    "name": "#2345拼音输入法老版本备份（by 何超）",
+    "level": "2",
+    "group": "#过期文件",
+    "description": "#2345拼音输入法在升级到新版本后留下的备份文件，在故障时回滚到老版本。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": false,
+    "sample_paths": []
+  },
+  {
+    "name": "#WPS老版本备份（by Rambin）",
+    "level": "2",
+    "group": "#过期文件",
+    "description": "#WPS在升级到新版本后留下的备份文件，在故障时回滚到老版本。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": false,
+    "sample_paths": []
+  },
+  {
+    "name": "#系统自带Appx应用",
+    "level": "2",
+    "group": "#系统相关",
+    "description": "#此功能将移除所有系统自带Appx应用，移除后可以在Windows应用商店重新下载他们。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": false,
+    "sample_paths": []
+  },
+  {
+    "name": "#Windows报告",
+    "level": "3",
+    "group": "#系统相关",
+    "description": "#当程序遇到某些问题时，系统会在这里留下稳定性报告，建议你定期清理。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%ProgramData%\\Microsoft\\Windows\\WER\\",
+      "%SystemDrive%\\Users\\*\\AppData\\Local\\Microsoft\\Windows\\WER\\",
+      "%SystemRoot%\\LiveKernelReports"
+    ]
+  },
+  {
+    "name": "#Windows事件",
+    "level": "3",
+    "group": "#系统相关",
+    "description": "#Windows在运行过程中产生的事件。",
+    "warnings": [],
+    "scans": 2,
+    "procs": [
+      "NCWinEventLogOnlineCleanup"
+    ],
+    "work": [
+      null,
+      null
+    ],
+    "custom_procs": 1,
+    "has_path": true,
+    "sample_paths": [
+      "%System%\\winevt\\Logs"
+    ]
+  },
+  {
+    "name": "#Windows更新安装记录",
+    "level": "2",
+    "group": "#系统相关",
+    "description": "#使用Windows Update安装更新后保存的记录。",
+    "warnings": [
+      "#删除后更新历史记录将被清空。"
+    ],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%SystemRoot%\\SoftwareDistribution\\DataStore"
+    ]
+  },
+  {
+    "name": "#Installer目录",
+    "level": "0",
+    "group": "#系统相关",
+    "description": "#清理被取代的msp补丁并减少Installer目录的大小。",
+    "warnings": [
+      "#(这是一个实验性功能)清理后将无法卸载被取代的msp更新，如果有卸载更新需求请勿使用此选项。"
+    ],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%SystemDrive%\\Windows\\Installer"
+    ]
+  },
+  {
+    "name": "#损坏的Appx",
+    "level": "2",
+    "group": "#系统相关",
+    "description": "#清理损坏的Appx。例如Visual Studio的通用应用XAML设计器暴力删除临时生成的设计器应用，于是会出现大量损坏的Appx。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%0%Config\\amd64\\NCleaner.dll",
+      "%0%Config\\x86\\NCleaner.dll"
+    ]
+  },
+  {
+    "name": "#系统还原点",
+    "level": "2",
+    "group": "#系统相关",
+    "description": "#先删除全部还原点，再创建一个新的还原点(当系统还原已启用时)",
+    "warnings": [
+      "#清理后将无法使用之前创建的还原点，如果有使用之前的还原点的需求请勿使用此选项。"
+    ],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": false,
+    "sample_paths": []
+  },
+  {
+    "name": "#零售演示离线内容",
+    "level": "2",
+    "group": "#系统相关",
+    "description": "#为Windows10零售演示模式所缓存的离线内容",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%ProgramData%\\Microsoft\\Windows\\RetailDemo",
+      "%ProgramData%\\Microsoft\\Windows\\RetailDemo\\"
+    ]
+  },
+  {
+    "name": "#Windows下载缓存",
+    "level": "2",
+    "group": "#缓存文件",
+    "description": "#Windows在下载更新以及更新Metro应用时会在这里产生临时安装包。",
+    "warnings": [],
+    "scans": 2,
+    "procs": [],
+    "work": [
+      null,
+      null
+    ],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%SystemRoot%\\SoftwareDistribution",
+      "%SystemRoot%\\SoftwareDistribution\\Download"
+    ]
+  },
+  {
+    "name": "#传递优化缓存",
+    "level": "2",
+    "group": "#缓存文件",
+    "description": "#Win10开始使用传递优化（DeliveryOptimization）服务下载Windows更新和通用应用（UWP）产生的缓存文件",
+    "warnings": [],
+    "scans": 2,
+    "procs": [
+      "NCDOCacheOnlineCleanup"
+    ],
+    "work": [
+      null,
+      null
+    ],
+    "custom_procs": 1,
+    "has_path": true,
+    "sample_paths": [
+      "%SystemRoot%\\DeliveryOptimization",
+      "%SystemRoot%\\ServiceProfiles\\NetworkService\\AppData\\Local\\Microsoft\\Windows\\DeliveryOptimization",
+      "%SystemRoot%\\SoftwareDistribution\\DeliveryOptimization"
+    ]
+  },
+  {
+    "name": "#Terminal Server Client缓存",
+    "level": "3",
+    "group": "#缓存文件",
+    "description": "#Terminal Server Client运行时产生的一些缓存文件。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%SystemDrive%\\Users\\*\\AppData\\Local\\Microsoft\\Terminal"
+    ]
+  },
+  {
+    "name": "#XDE缓存文件",
+    "level": "2",
+    "group": "#缓存文件",
+    "description": "#WP开发时保存的一些虚拟机状态文件，不建议频繁清理此条目。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%ProgramData%\\Microsoft\\XDE",
+      "%SystemDrive%\\Users\\*\\AppData\\Local\\Microsoft\\XDE"
+    ]
+  },
+  {
+    "name": "#PDB缓存文件",
+    "level": "2",
+    "group": "#缓存文件",
+    "description": "#调试程序时创建的符号缓存，不建议频繁清理此条目。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%LOCALAPPDATA%\\DBG"
+    ]
+  },
+  {
+    "name": "#NET程序集缓存（by 大胖子技术员）",
+    "level": "2",
+    "group": "#缓存文件",
+    "description": "#NET程序运行过程中产生的机器代码缓存文件，不建议频繁清理此条目。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%SystemRoot%\\assembly\\NativeImages_v*",
+      "%SystemRoot%\\assembly\\temp",
+      "%SystemRoot%\\assembly\\tmp"
+    ]
+  },
+  {
+    "name": "#Visual Studio智能跟踪（by LP）",
+    "level": "1",
+    "group": "#缓存文件",
+    "description": "#Visual Studio调试程序时留下的智能跟踪缓存。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%ProgramData%\\Microsoft"
+    ]
+  },
+  {
+    "name": "#Windows预读取文件（by 辰g.）",
+    "level": "2",
+    "group": "#缓存文件",
+    "description": "#用于加速下次程序启动速度，不建议频繁清理此条目。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%SystemRoot%\\Prefetch"
+    ]
+  },
+  {
+    "name": "#缩略图缓存",
+    "level": "2",
+    "group": "#缓存文件",
+    "description": "",
+    "warnings": [],
+    "scans": 2,
+    "procs": [],
+    "work": [
+      null,
+      null
+    ],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%SystemDrive%\\Users\\*\\AppData\\Local"
+    ]
+  },
+  {
+    "name": "#WinINet网页缓存",
+    "level": "3",
+    "group": "#缓存文件",
+    "description": "#清理每个用户账户和应用容器下的Windows网络组件（例如IE，Edge）的网页缓存（仅支持默认目录）",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%System%\\config\\systemprofile\\AppData\\Local\\Microsoft\\Windows\\INetCache\\",
+      "%System%\\config\\systemprofile\\AppData\\Local\\Microsoft\\Windows\\Temporary",
+      "%SystemDrive%\\Users\\*\\AppData\\Local\\Microsoft\\Windows\\INetCache\\",
+      "%SystemDrive%\\Users\\*\\AppData\\Local\\Microsoft\\Windows\\Temporary"
+    ]
+  },
+  {
+    "name": "#WinINet Cookies",
+    "level": "2",
+    "group": "#缓存文件",
+    "description": "#清理每个用户账户和应用容器下的Windows网络组件（例如IE，Edge）的Cookies（仅支持默认目录）",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%System%\\config\\systemprofile\\AppData\\Local\\Microsoft\\Windows\\INetCookies\\",
+      "%System%\\config\\systemprofile\\AppData\\Roaming\\Microsoft\\Windows\\Cookies\\",
+      "%SystemDrive%\\Users\\*\\AppData\\Local\\Microsoft\\Windows\\INetCookies\\",
+      "%SystemDrive%\\Users\\*\\AppData\\Local\\Packages\\*\\AC\\#!*\\INetCookies\\"
+    ]
+  },
+  {
+    "name": "#Package Cache目录",
+    "level": "2",
+    "group": "#应用程序",
+    "description": "#Package Cache目录存放以WIX为基础的安装程序的安装源",
+    "warnings": [
+      "#清理后基于WIX的安装程序例如VS可以正常卸载；但升级、修复、增添组件需要联网或者备好安装镜像"
+    ],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%ProgramData%\\Package"
+    ]
+  },
+  {
+    "name": "#WebPI缓存",
+    "level": "2",
+    "group": "#应用程序",
+    "description": "#Web平台安装程序的缓存",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%SystemDrive%\\Users\\*\\AppData\\Local\\Microsoft\\Web"
+    ]
+  },
+  {
+    "name": "#新版Visual Studio安装源缓存",
+    "level": "2",
+    "group": "#应用程序",
+    "description": "#该项目清理Visual Studio 2017及以后版本的安装源",
+    "warnings": [
+      "#清理后升级、修复、增添组件、卸载Visual Studio 2017及之后的版本需要联网"
+    ],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%ProgramData%\\Microsoft\\VisualStudio\\Packages"
+    ]
+  },
+  {
+    "name": "#Boot备份信息",
+    "level": "3",
+    "group": "#备份文件",
+    "description": "#修改启动信息后系统会创建备份，方便回滚。如果确定不需要还原则可以删除。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%SystemRoot%\\pss"
+    ]
+  },
+  {
+    "name": "#硬链接备份",
+    "level": "2",
+    "group": "#备份文件",
+    "description": "#硬链接合并功能留下的备份文件。",
+    "warnings": [
+      "#请你确保硬链接合并后系统正常，删除此文件将导致硬链接合并操作无法回滚！"
+    ],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%SystemDrive%\\$HardLinkBackup"
+    ]
+  },
+  {
+    "name": "#会声会影素材存档",
+    "level": "2",
+    "group": "#备份文件",
+    "description": "#会声会影使用过程中会在此目录产生存档，在不需要后可以删除。",
+    "warnings": [
+      "#请确保所有编辑的视频已经保存！"
+    ],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%Documents%\\Corel"
+    ]
+  },
+  {
+    "name": "#最后一次正确配置（by Stanlazy）",
+    "level": "2",
+    "group": "#备份文件",
+    "description": "#最近能正常启动计算机的配置备份。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%SystemRoot%\\lastgood",
+      "%SystemRoot%\\lastgood.tmp"
+    ]
+  },
+  {
+    "name": "#WinSxS临时文件",
+    "level": "3",
+    "group": "#临时文件",
+    "description": "#系统更新时在WinSxS里面产生的临时文件。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%SystemRoot%\\CbsTemp\\",
+      "%SystemRoot%\\WinSxS\\ManifestCache"
+    ]
+  },
+  {
+    "name": "#Windows日志（by chenyu、YukiSakura）",
+    "level": "3",
+    "group": "#临时文件",
+    "description": "#Windows在运行时产生的日志。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%ProgramData%\\USOShared\\Logs",
+      "%System%\\LogFiles\\*",
+      "%System%\\WDI\\LogFiles\\*",
+      "%SystemDrive%\\Logs\\"
+    ]
+  },
+  {
+    "name": "#临时文件",
+    "level": "2",
+    "group": "#临时文件",
+    "description": "#一些程序为特定用户产生的临时文件。",
+    "warnings": [],
+    "scans": 2,
+    "procs": [],
+    "work": [
+      null,
+      null
+    ],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%System%\\config\\systemprofile\\AppData\\Local\\Temp\\",
+      "%SystemDrive%\\Users\\*\\AppData\\Local\\Packages\\*\\AC\\#!*\\Temp\\",
+      "%SystemDrive%\\Users\\*\\AppData\\Local\\Packages\\*\\AC\\Temp\\",
+      "%SystemDrive%\\Users\\*\\AppData\\Local\\Temp\\"
+    ]
+  },
+  {
+    "name": "#常见的驱动临时解压目录",
+    "level": "3",
+    "group": "#临时文件",
+    "description": "#Intel、AMD以及Nvidia驱动在安装时留下的解压目录。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%SystemDrive%\\AMD",
+      "%SystemDrive%\\Intel",
+      "%SystemDrive%\\NVIDIA",
+      "%SystemDrive%\\Prog"
+    ]
+  },
+  {
+    "name": "#Windows临时安装文件",
+    "level": "2",
+    "group": "#临时文件",
+    "description": "#在系统升级或者还原后留下的系统临时安装文件，如果你确定当前没有进行系统升级或者还原，那么可以安全删除。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%SystemDrive%\\$Windows.~BT",
+      "%SystemDrive%\\$Windows.~LS",
+      "%SystemDrive%\\$Windows.~WS"
+    ]
+  },
+  {
+    "name": "#QQ临时数据",
+    "level": "2",
+    "group": "#临时文件",
+    "description": "#QQ运行时产生的临时文件还有日志，不影响QQ消息记录，建议定期删除。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%SystemDrive%\\Users\\*\\AppData\\Roaming\\Tencent\\",
+      "%SystemDrive%\\Users\\*\\AppData\\Roaming\\Tencent\\Users\\*\\WinTemp\\*",
+      "%SystemX86%\\config\\systemprofile\\AppData\\Roaming\\Tencent"
+    ]
+  },
+  {
+    "name": "#YY临时文件",
+    "level": "2",
+    "group": "#临时文件",
+    "description": "#YY运行时产生的一些临时文件以及日志，建议定期删除。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%SystemDrive%\\Users\\*\\AppData\\Roaming\\duowan\\yy\\"
+    ]
+  },
+  {
+    "name": "#腾讯相关软件下载目录",
+    "level": "3",
+    "group": "#临时文件",
+    "description": "#腾讯相关软件更新时会在此留下残留。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%ProgramData%\\temp"
+    ]
+  },
+  {
+    "name": "#微软拼音安装文件",
+    "level": "3",
+    "group": "#临时文件",
+    "description": "#微软拼音升级程序遗留下的安装文件。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%SystemDrive%\\Users\\*\\AppData\\LocalLow\\"
+    ]
+  },
+  {
+    "name": "#百度网盘日志",
+    "level": "3",
+    "group": "#临时文件",
+    "description": "#百度网盘运行时产生的一些日志文件。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%APPDATA%\\BaiduYunGuanjia\\logs",
+      "%APPDATA%\\BaiduYunGuanjia\\logs\\",
+      "%APPDATA%\\BaiduYunKernel\\Data",
+      "%APPDATA%\\BaiduYunKernel\\Data\\"
+    ]
+  },
+  {
+    "name": "#飞信日志",
+    "level": "3",
+    "group": "#临时文件",
+    "description": "#飞信运行时产生的一些日志文件。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%APPDATA%\\FetionV5",
+      "%APPDATA%\\FetionV5\\"
+    ]
+  },
+  {
+    "name": "#回收站",
+    "level": "3",
+    "group": "#临时文件",
+    "description": "#用于存放用户手动删除的文件目录。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": false,
+    "sample_paths": []
+  },
+  {
+    "name": "#系统以及程序崩溃dmp文件（by YukiSakura）",
+    "level": "1",
+    "group": "#临时文件",
+    "description": "#当系统蓝屏或者应用程序崩溃时产生的dmp文件。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%SystemDrive%\\users\\*\\appdata\\local"
+    ]
+  },
+  {
+    "name": "#微软系安软无用文件",
+    "level": "2",
+    "group": "#临时文件",
+    "description": "#该项目清理WD，MSE，SCEP等微软系安软的无用文件",
+    "warnings": [],
+    "scans": 1,
+    "procs": [],
+    "work": [
+      null
+    ],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%ProgramData%\\Microsoft\\Microsoft",
+      "%ProgramData%\\Microsoft\\Windows"
+    ]
+  },
+  {
+    "name": "#Visual Studio日志",
+    "level": "2",
+    "group": "#临时文件",
+    "description": "#使用Visual Studio所产生的日志",
+    "warnings": [],
+    "scans": 1,
+    "procs": [],
+    "work": [
+      null
+    ],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%ProgramData%\\Microsoft\\VisualStudio",
+      "%SystemDrive%\\Users\\*\\AppData\\Local\\Microsoft\\VisualStudio\\SettingsLogs\\"
+    ]
+  },
+  {
+    "name": "#IDM临时文件（by MS-PC2）",
+    "level": "2",
+    "group": "#临时文件",
+    "description": "#Internet Download Manager临时下载文件。",
+    "warnings": [
+      "#清理IDM临时文件可能导致正在下载的任务需要重新下载！"
+    ],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": false,
+    "sample_paths": []
+  },
+  {
+    "name": "#CompactOs（较慢）",
+    "level": "0",
+    "group": "#系统相关",
+    "description": "#对单纯读取的文件进行哈夫曼压缩，在不影响性能的情况下，显著减少系统体积。特别感谢矿工以及所有Compact团队成员无私的支持与帮助。",
+    "warnings": [
+      "#使用后可能导致某些程序无法正常运行甚至让系统无法启动，如果使用后出现问题，可以在PE中点击 恢复功能-->撤销Compact。"
+    ],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%System%\\drivers\\wof.sys"
+    ]
+  },
+  {
+    "name": "#硬链接合并（较慢）",
+    "level": "0",
+    "group": "#系统相关",
+    "description": "#使用利用NTFS硬链接特性合并所有文件内容相同的文件。",
+    "warnings": [
+      "#某些文件被硬链接合并后可能导致相关功能无法正常使用。"
+    ],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": false,
+    "sample_paths": []
+  },
+  {
+    "name": "#过期驱动",
+    "level": "0",
+    "group": "#过期文件",
+    "description": "#删除计算机中不使用的驱动程序以节省驱动存储池空间。",
+    "warnings": [
+      "#该功能对于某些精简系统或者手动处理过驱动的系统可能发生驱动签名问题。"
+    ],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": false,
+    "sample_paths": []
+  },
+  {
+    "name": "#过期Appx应用",
+    "level": "0",
+    "group": "#过期文件",
+    "description": "#在Appx应用升级时，会留下老版本应用，该功能将删除那些不使用的老版本。",
+    "warnings": [
+      "#少数用户报告称使用后无法打开Appx应用，需要重新安装Appx应用。"
+    ],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": false,
+    "sample_paths": []
+  },
+  {
+    "name": "#Installer基线缓存",
+    "level": "0",
+    "group": "#系统相关",
+    "description": "#使用Installer技术的安装程序产生的缓存。",
+    "warnings": [
+      "#可能导致卸载Office、VM等应用程序需要安装包。"
+    ],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%SystemDrive%\\Program",
+      "%SystemRoot%\\Installer\\$PatchCache$",
+      "%SystemRoot%\\Installer\\$PatchCache$\\"
+    ]
+  },
+  {
+    "name": "#Office安装源",
+    "level": "0",
+    "group": "#应用程序",
+    "description": "#安装Office后产生的安装源，如果不需要卸载Office可以考虑删除，删除后能正常安装Office更新。",
+    "warnings": [
+      "#清理后将无法卸载只能升级安装或者强行删除，Office 2007以下版本（包含）删除后还影响安装更新。"
+    ],
+    "scans": 2,
+    "procs": [],
+    "work": [
+      null,
+      null
+    ],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%SystemDrive%\\MSOCache"
+    ]
+  },
+  {
+    "name": "#Office 365/2016安装源",
+    "level": "0",
+    "group": "#应用程序",
+    "description": "#安装Office 365/2016后产生的安装源。",
+    "warnings": [
+      "#清理可能导致无法正常卸载Office。"
+    ],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%ProgramData%\\Microsoft\\ClickToRun\\"
+    ]
+  },
+  {
+    "name": "#苹果iTunes备份",
+    "level": "0",
+    "group": "#应用程序",
+    "description": "#苹果相关设备备份文件，比如通讯录、照片、视频等。",
+    "warnings": [
+      "#请你确保暂时不需要使用恢复功能，如果你现在需要恢复苹果设备，请勿勾选此项目！"
+    ],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%SystemDrive%\\Users\\*\\AppData\\Roaming\\Apple"
+    ]
+  },
+  {
+    "name": "#瑞昱声卡驱动安装源缓存（by YukiSakura）",
+    "level": "0",
+    "group": "#缓存文件",
+    "description": "#瑞昱声卡安装后留下的安装源缓存。",
+    "warnings": [
+      "#此条目可能影响瑞昱声卡驱动的卸载。"
+    ],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%ProgramFiles%\\Realtek\\Audio"
+    ]
+  },
+  {
+    "name": "#Java安装源缓存（by YukiSakura）",
+    "level": "0",
+    "group": "#缓存文件",
+    "description": "#Java安装后留下的安装源缓存。",
+    "warnings": [
+      "#此条目可能影响Java的卸载。"
+    ],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%SystemDrive%\\Users\\*\\AppData\\Roaming\\Oracle\\Java"
+    ]
+  },
+  {
+    "name": "#Intel驱动安装源缓存（by YukiSakura）",
+    "level": "0",
+    "group": "#缓存文件",
+    "description": "#Intel驱动安装后留下的安装源缓存。",
+    "warnings": [
+      "#此条目可能影响Intel驱动的卸载。"
+    ],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%ProgramData%\\Intel\\Package"
+    ]
+  },
+  {
+    "name": "#英伟达驱动安装源缓存（by YukiSakura）",
+    "level": "0",
+    "group": "#缓存文件",
+    "description": "#英伟达驱动安装后留下的安装源缓存。",
+    "warnings": [
+      "#此条目可能影响英伟达驱动的卸载。"
+    ],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%ProgramFiles%\\NVIDIA",
+      "%SystemDrive%\\users\\*\\appdata\\nvidia\\nvbackend\\packages"
+    ]
+  },
+  {
+    "name": "#英伟达驱动安装包（by Ailick）",
+    "level": "1",
+    "group": "#临时文件",
+    "description": "#Nvidia Geforce Experience更新程序时产生的安装包。",
+    "warnings": [
+      "#此条目可能影响英伟达驱动的卸载。"
+    ],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%PROGRAMDATA%\\NVIDIA"
+    ]
+  },
+  {
+    "name": "#Microsoft SQL Server更新缓存（by Honry、撕裂五维空间）",
+    "level": "0",
+    "group": "#缓存文件",
+    "description": "#安装Microsoft SQL Server补丁残留的安装缓存。",
+    "warnings": [
+      "#此条目最新添加，可能引发意外问题！"
+    ],
+    "scans": 2,
+    "procs": [],
+    "work": [
+      null,
+      null
+    ],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%ProgramFiles%\\Microsoft",
+      "%ProgramFilesX86%\\Microsoft"
+    ]
+  },
+  {
+    "name": "#Adobe Acrobat安装源缓存（by Honry）",
+    "level": "0",
+    "group": "#缓存文件",
+    "description": "#安装Adobe Acrobat后留下的安装缓存。",
+    "warnings": [
+      "#删除此条目可能导致Adobe Acrobat无法正常卸载！"
+    ],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%ProgramFilesX86%\\Adobe\\Acrobat"
+    ]
+  },
+  {
+    "name": "#小红伞临时文件",
+    "level": "0",
+    "group": "#临时文件",
+    "description": "#小红伞在自动升级过程中残留的临时文件。",
+    "warnings": [],
+    "scans": 0,
+    "procs": [],
+    "work": [],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%ProgramData%\\Avira",
+      "%ProgramData%\\Avira\\*\\"
+    ]
+  },
+  {
+    "name": "#Microsoft .NET安装缓存（by 撕裂五维空间）",
+    "level": "0",
+    "group": "#缓存文件",
+    "description": "#安装Microsoft .NET补丁残留的安装缓存。",
+    "warnings": [
+      "#此条目最新添加，可能引发意外问题！"
+    ],
+    "scans": 2,
+    "procs": [],
+    "work": [
+      null,
+      null
+    ],
+    "custom_procs": 0,
+    "has_path": true,
+    "sample_paths": [
+      "%ProgramFiles%\\Microsoft",
+      "%ProgramFiles%\\Microsoft.NET\\Multi-Targeting",
+      "%ProgramFilesX86%\\Microsoft.NET\\Multi-Targeting"
+    ]
+  }
+]

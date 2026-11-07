@@ -1,60 +1,45 @@
-# disk-guardian 项目长期记忆
+# disk-guardian 长期记忆
 
-## 归集与定位
+## 1. 归集与核心定位
 
-- 源码在这里：`D:\4rchive\Code\disk-guardian\`（独立 git 仓库）。
-- 双击入口在 `C:\Users\36230\SystemTools\disk-guardian\`，已登记在
-  `C:\Users\36230\SystemTools\索引.md` **第一节**。
-- 判据是用户 2026-10-09 定的那句「双击它，本机有没有被改动」：本工具删本机文件 → 归「一」。
-  源码放 `D:\4rchive\Code\` 是 wintuner 模式，不是「三」（不改远端账号）。
-- 定位：**Dism++ 的补集，不是替代品**。Dism++ 管 WinSxS / 事件日志 / 还原点；
-  本工具管 shader / 包管理器缓存 / 构建产物。
+- **代码与入口**：
+  - 源码仓库：`D:\4rchive\Code\disk-guardian\`（独立 git 仓库）。
+  - 双击入口：`C:\Users\36230\SystemTools\disk-guardian\`，已登记在 `C:\Users\36230\SystemTools\索引.md` **第一节**（改动本机文件，归「一」）。
+- **工具定位**：**Dism++ 的补集，而非替代品**。
+  - Dism++ 管 WinSxS / 驱动 / 系统基线；
+  - 本工具专管现代 Shader 缓存（DXCache/GLCache）、包管理器（npm/pnpm/cargo/NuGet）与开发构建产物（Dism++ 71 条规则对此全部 0 命中）。
+- **知识库体系**：设计与证据索引见 [`docs/README.md`](../../docs/README.md)。
 
-## 图形界面（2026-11-07 v0）
+## 2. 蓝屏事故证据与 25H2 观察期禁区 (Provenance)
 
-- 用户要「像 Dism++ 一样的图形化、现代化」。做了 `ui/server.py`（标准库
-  `http.server`，仅回环、一次性令牌、首页也校验、`--app=` 窗口、**不自动退出**）
-  + `ui/assets/index.html`（单文件、离线、深浅主题、四个页面），双击入口
-  `SystemTools\disk-guardian\5-打开图形界面.bat`（用 `pythonw.exe`）。
-- **魔改 Dism++ 不可行**：`api.github.com/repos/Chuyu-Team/Dism++` 是 404，
-  组织 24 个仓库里没有主程序源码，开源的只有 `Data.xml` / 语言包 / 插件文档 /
-  周边 C++ 库，主程序是闭源单 exe。中文推广站写「MIT 开源」不可信。
-  （纠正此前「Dism++ 开源」的说法。）
-- 同类轮子源码级核对见 `docs/调研-2026-11-07.md`：`disk-butler`
-  （Tauri2+Rust，650 stars）已做白名单制 / 只读报告 / 单测，但**用了
-  `SHEmptyRecycleBinW`**、永久删、没有 `winevt`/`assembly` 禁区概念。
-  我们的差异化是「事故取证结论 → 不可绕过的禁区 + 两步删除 + 动作流水」。
-- CLI 与 GUI **共用 `guardian.execute_rules`**，前端只传 id；后端用刚重建的
-  plan 复核等级/状态/禁区。别复制第二份删除逻辑。
-- v0 依赖本机托管 Python，不是单 exe；形态确认后可再用 wintuner 的
-  Go + 内嵌网页骨架包一层。
+- **事故根源**：详见 [`docs/incidents/2026-11-04-bsod-incident-and-rules.md`](../../docs/incidents/2026-11-04-bsod-incident-and-rules.md)。
+  - 2026-11-04 来酷 Bellator N176 (8940HX/5060/25H2) 发生多次内核空闲崩溃（0x1E/0xA/0x50/0xBE），排障时因前序清理工具导致日志与早前 dmp 断链，教训极其深刻。
+  - 系统当前处于 **25H2 蓝屏观察期**，已配置专用转储 `dedicateddumpfile.sys` 与驱动验证器。
+- **不可动摇的硬禁区 (HARD_DENY)**：
+  - **禁区位置铁律**：`HARD_DENY` **必须硬编码在 `guardian.py` 常量中，绝不能搬进 `rules.json`**（规则表是数据，禁区是不可篡改的代码约束）。同时必须严格拦截“目标作为受保护路径的父目录”。改动后必须执行 `python guardian.py --check-rules`，18 条断言全 PASS。
+  - **禁止清理对象**：
+    1. `winevt\Logs`（Windows 事件日志，销毁蓝屏证据，绝对禁止）；
+    2. `MEMORY.DMP` / `Minidump` / `CrashDumps`（观察期保留现场）；
+    3. `dedicateddumpfile.sys`（专用转储文件）；
+    4. `assembly\NativeImages_*`（实测清空后 NGEN 后台死循环重建反噬 2.5 GiB）；
+    5. `Installer` 目录（破坏 MSI 安装卸载底层）；
+    6. 观察期内全面冻结 `WinSxS` 组件清理与系统还原点。
+  - **规则转译红线**：Dism++ 的 Level 等级（L0~L3）绝不能直接映射到本工具 level，吸收外来规则必须逐条人工核定边界与适用范围。
 
-## 不可动摇的设计约束
+## 3. 核心设计铁律 (Invariants)
 
-1. 默认只读预览。必须 `--apply` + 交互令牌（`DELETE` / `DELETE2` / `DELETE3`）。
-2. `HARD_DENY` 写在 `guardian.py` 常量里，**绝不能搬进 `rules.json`**。
-   规则表是可编辑数据，禁区必须是可审查的代码；同时要拦「目标作为受保护路径的父目录」。
-   改完必须跑 `guardian.py --check-rules`，18 条断言全 PASS 才算数。
-3. **绝不调用 `SHEmptyRecycleBinW`**：2026-11-07 实测遇到 `$R02DUPK` / `0x80004005`
-   会弹模态框卡死，`SHERB_NOCONFIRMATION` 也挡不住。清空走 `recycle.empty_safely()`。
-4. `--apply` 只移入回收站（可撤销），`--purge` 才永久删（令牌 `PURGE`），两步分开。
-5. 日志每行 flush + fsync；动作另外写 `out/actions.jsonl`。
-   原因是 `stage1_clean.py` 曾卡住后日志一个字都没落盘。
+1. **默认只读预览**：必须显式 `--apply` 并输入交互令牌（`DELETE` / `DELETE2` / `DELETE3`）才执行。
+2. **两步删除语义**：`--apply` 仅移入回收站（可撤销）；`--purge` 才真正永久物理删除（令牌 `PURGE`），两步严格解耦。
+3. **严禁调用 `SHEmptyRecycleBinW`**：实测遇到坏死文件（如 `$R02DUPK` / `0x80004005`）会触发系统模态框无限卡死，`SHERB_NOCONFIRMATION` 也无法阻断。清空回收站必须通过 `recycle.empty_safely()` 按 `$I`/`$R` 配对安全逐批清理。
+4. **审计绝对落盘**：日志每行必须执行 `flush + fsync`，动作明细独立写 `out/actions.jsonl`，防止执行卡死时日志断流。
 
-## 本机实测结论（2026-11-07）
+## 4. 运行与编码规范
 
-- 清「NET程序集缓存」→ NGEN 后台重建 `NativeImages_*` 反吃约 2.5 GiB，别碰。
-- 清「Windows事件」→ 11/4–11/6 蓝屏事件证据在系统里被抹掉，别碰。
-- `NVIDIA\DXCache` 曾 8.25 GiB、`go-build` 1.08 GiB，Dism++ 完全没有对应规则。
-- 第一档清理后 C free 从 29.56 → 39.87 GiB（约 +10.31 GiB）。
-- 25H2 蓝屏观察期：别勾 Dism++ 的「被取代的 WinSxS 组件」「系统还原点」「Windows事件」；
-  本机 `Config.ini` 里 `#系统以及程序崩溃dmp文件=1` 建议改 0。
-
-## 编码 / 打包约定
-
-- `.bat` 由 `tools\make_launchers.py` 生成，**不要手工编辑**。
-  GB18030 + CRLF + 无 BOM + `chcp 936`；文件名不含半角括号；ASCII 标签；
-  不用 `if (...)` 块（会闪退）；显式 `PYTHONUTF8=1` / `PYTHONIOENCODING=utf-8`
-  （本机 ACP=936 但托管 Python 是 UTF-8 模式）。
-- `.gitattributes` 里 `*.bat text eol=crlf` 必须写在 `* text=auto eol=lf` **之后**。
-- `out/` 不入库。没有配远端，推之前先确认路径里没有本机敏感信息。
+- **图形界面 (WebUI)**：
+  - 架构：`ui/server.py`（标准库 `http.server`）+ `ui/assets/index.html`（离线单文件）。
+  - 安全约束：严格监听 `127.0.0.1`；一次性令牌鉴权（首页与 API 均校验）；Edge/Chrome `--app=` 无边框模式；不自动退出（由页面主动触发退出）。
+  - 单一事实源：CLI 与 GUI **共用 `guardian.execute_rules`**，前端仅传递规则 id，后端以刚重建的 plan 复核等级与禁区，严禁复制第二份清理逻辑。
+- **脚本与启动器 (.bat)**：
+  - `.bat` 一律由 `tools\make_launchers.py` 自动化生成，**严禁手工编辑**。
+  - 编码规则：GB18030 + CRLF + 无 BOM + `chcp 936`；文件名不含半角括号；不用 `if (...)` 括号块（防解析闪退）；显式声明 `PYTHONUTF8=1`。
+  - `.gitattributes` 中 `*.bat text eol=crlf` 必须置于 `* text=auto eol=lf` 之后。
