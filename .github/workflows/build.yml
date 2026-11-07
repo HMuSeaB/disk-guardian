@@ -38,7 +38,7 @@ jobs:
       - name: Publish WinUI 3 Desktop App
         shell: pwsh
         run: |
-          dotnet publish src/DiskGuardian.UI/DiskGuardian.UI.csproj -c Release -r win-x64 --self-contained false -p:Platform=x64 -p:WindowsPackageType=None -p:AppxPackage=false -o artifacts/DiskGuardian-WinUI3
+          dotnet publish src/DiskGuardian.UI/DiskGuardian.UI.csproj -c Release -r win-x64 --self-contained false -p:Platform=x64 -p:WindowsPackageType=None -p:AppxPackage=false -p:WindowsAppSDKSelfContained=true -o artifacts/DiskGuardian-WinUI3
           New-Item -ItemType Directory -Force -Path artifacts/DiskGuardian-WinUI3
           Copy-Item rules.json artifacts/DiskGuardian-WinUI3/ -Force
 
