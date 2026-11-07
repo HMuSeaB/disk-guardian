@@ -60,7 +60,7 @@
                             <TextBlock Text="{Binding DeletedTime}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                         </StackPanel>
 
-                        <TextBlock Grid.Column="1" Text="{Binding SizeBytes}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="{Binding SizeHuman}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
                     </Grid>
                 </DataTemplate>
             </ListView.ItemTemplate>

@@ -2,10 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+using DiskGuardian.Core.Engine;
 
 namespace DiskGuardian.Core.Safety;
 
-public sealed record RecycleItem(long SizeBytes, string OriginalPath, string DeletedFileName, DateTime DeletedTime);
+public sealed record RecycleItem(
+    long SizeBytes,
+    string SizeHuman,
+    string OriginalPath,
+    string DeletedFileName,
+    DateTime DeletedTime);
 
 /// <summary>
 /// Windows 原生安全回收站管理器：
@@ -123,11 +129,74 @@ public static class RecycleManager
     }
 
     /// <summary>
+    /// 解析 Windows 回收站 $I 索引文件，提取被删除文件的原始路径、元数据大小与删除时间
+    /// </summary>
+    public static (string OriginalPath, long MetaSize, DateTime DeletedTime) ParseIndexFile(string iFilePath)
+    {
+        try
+        {
+            using var fs = new FileStream(iFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using var reader = new BinaryReader(fs);
+            if (fs.Length < 28)
+            {
+                return (Path.GetFileName(iFilePath), 0, File.GetCreationTime(iFilePath));
+            }
+
+            long version = reader.ReadInt64();
+            long metaSize = reader.ReadInt64();
+            long fileTime = reader.ReadInt64();
+            DateTime deletedTime;
+            try
+            {
+                deletedTime = DateTime.FromFileTimeUtc(fileTime).ToLocalTime();
+            }
+            catch
+            {
+                deletedTime = File.GetCreationTime(iFilePath);
+            }
+
+            string originalPath = "";
+            if (version >= 2)
+            {
+                if (fs.Length >= 32)
+                {
+                    int charCount = reader.ReadInt32();
+                    if (charCount > 0 && fs.Length >= 28 + charCount * 2)
+                    {
+                        var bytes = reader.ReadBytes(charCount * 2);
+                        originalPath = System.Text.Encoding.Unicode.GetString(bytes).TrimEnd('\0');
+                    }
+                }
+            }
+            else
+            {
+                int remaining = Math.Min((int)(fs.Length - 24), 520);
+                if (remaining > 0)
+                {
+                    var bytes = reader.ReadBytes(remaining);
+                    originalPath = System.Text.Encoding.Unicode.GetString(bytes).TrimEnd('\0');
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(originalPath))
+            {
+                originalPath = Path.GetFileName(iFilePath);
+            }
+
+            return (originalPath, metaSize, deletedTime);
+        }
+        catch
+        {
+            return (Path.GetFileName(iFilePath), 0, File.GetCreationTime(iFilePath));
+        }
+    }
+
+    /// <summary>
     /// 枚举回收站内的物理文件（解析 $Recycle.Bin 下的 $I 和 $R）
     /// </summary>
     public static List<RecycleItem> EnumerateRecycleBin(IEnumerable<string>? driveRoots = null)
     {
-        var drives = driveRoots ?? new[] { @"C:\" };
+        var drives = driveRoots ?? new[] { @"C:\", @"D:\" };
         var results = new List<RecycleItem>();
 
         foreach (var drive in drives)
@@ -145,19 +214,29 @@ public static class RecycleManager
                         var iFiles = Directory.GetFiles(sidDir, "$I*");
                         foreach (var iFile in iFiles)
                         {
+                            var (origPath, metaSize, delTime) = ParseIndexFile(iFile);
                             var rFile = Path.Combine(sidDir, "$R" + Path.GetFileName(iFile).Substring(2));
+
                             long size = 0;
                             if (File.Exists(rFile))
                             {
-                                try { size = new FileInfo(rFile).Length; } catch { }
+                                try { size = new FileInfo(rFile).Length; } catch { size = metaSize; }
                             }
                             else if (Directory.Exists(rFile))
                             {
-                                // 目录大小
-                                try { size = GetDirectorySize(rFile); } catch { }
+                                try { size = GetDirectorySize(rFile); } catch { size = metaSize; }
+                            }
+                            else
+                            {
+                                size = 0;
                             }
 
-                            results.Add(new RecycleItem(size, rFile, Path.GetFileName(iFile), File.GetCreationTime(iFile)));
+                            results.Add(new RecycleItem(
+                                SizeBytes: size,
+                                SizeHuman: CleanerEngine.HumanSize(size),
+                                OriginalPath: origPath,
+                                DeletedFileName: Path.GetFileName(iFile),
+                                DeletedTime: delTime));
                         }
                     }
                     catch { }
@@ -170,16 +249,54 @@ public static class RecycleManager
     }
 
     /// <summary>
-    /// 安全分批物理清空回收站，不调用容易死锁的 SHEmptyRecycleBinW
+    /// 安全分批物理清空回收站，不调用容易死锁的 SHEmptyRecycleBinW。
+    /// 同时清除 $I 索引头与 $R 数据实体，杜绝残留幽灵对象。
     /// </summary>
     public static (int SucceededCount, List<string> FailedPaths) EmptySafely(IEnumerable<string>? driveRoots = null)
     {
-        var items = EnumerateRecycleBin(driveRoots);
+        var drives = driveRoots ?? new[] { @"C:\", @"D:\" };
         var targetPaths = new List<string>();
 
-        foreach (var item in items)
+        foreach (var drive in drives)
         {
-            targetPaths.Add(item.OriginalPath);
+            var binPath = Path.Combine(drive, "$Recycle.Bin");
+            if (!Directory.Exists(binPath)) continue;
+
+            try
+            {
+                var sidDirs = Directory.GetDirectories(binPath);
+                foreach (var sidDir in sidDirs)
+                {
+                    try
+                    {
+                        // 1. 收集所有 $I 索引文件与 $R 实体文件
+                        var files = Directory.GetFiles(sidDir, "*", SearchOption.TopDirectoryOnly);
+                        foreach (var f in files)
+                        {
+                            var name = Path.GetFileName(f);
+                            if (name.StartsWith("$I", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("$R", StringComparison.OrdinalIgnoreCase))
+                            {
+                                targetPaths.Add(f);
+                            }
+                        }
+
+                        // 2. 收集所有 $R 目录实体
+                        var subDirs = Directory.GetDirectories(sidDir, "$R*");
+                        foreach (var d in subDirs)
+                        {
+                            targetPaths.Add(d);
+                        }
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+        }
+
+        if (targetPaths.Count == 0)
+        {
+            return (0, new List<string>());
         }
 
         var (succeeded, failed) = SendMany(targetPaths, batchSize: 50, permanent: true);
