@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using DiskGuardian.Core.Diagnostics;
 using DiskGuardian.Core.Discovery;
 using DiskGuardian.Core.Engine;
 using DiskGuardian.Core.Safety;
@@ -16,6 +17,16 @@ public static class Program
         if (args.Contains("--check-rules"))
         {
             return RunCheckRules();
+        }
+
+        if (args.Contains("--check-proxy"))
+        {
+            return RunCheckProxy();
+        }
+
+        if (args.Contains("--fix-proxy"))
+        {
+            return RunFixProxy();
         }
 
         int level = 1;
@@ -120,5 +131,51 @@ public static class Program
         Console.WriteLine("SELF-TEST FAILED! 存在安全缺陷，请检查阻断逻辑。");
         Console.ResetColor();
         return 1;
+    }
+
+    private static int RunCheckProxy()
+    {
+        Console.WriteLine("=== disk-guardian 系统网络与幽灵代理体检 (ProxyDoctor) ===\n");
+        var report = ProxyDoctor.Diagnose();
+        Console.WriteLine($"体检结论: {report.Summary}");
+        Console.WriteLine($"DWORD ProxyEnable: {(report.ProxyEnable ? "1 (启用)" : "0 (关闭)")}");
+        Console.WriteLine($"ProxyServer 配置: {(string.IsNullOrEmpty(report.ProxyServer) ? "(未设置)" : report.ProxyServer)}");
+        Console.WriteLine($"底层标志位冲突: {(report.InconsistentFlags ? "是 (异常!)" : "否")}");
+        Console.WriteLine($"本地代理端口死锁: {(report.IsDeadLoopbackPort ? $"是 (端口 {report.DeadPort} 未监听!)" : "否")}");
+        Console.WriteLine($"用户环境变量代理: {(string.IsNullOrEmpty(report.UserEnvProxy) ? "(无)" : report.UserEnvProxy)}");
+        Console.WriteLine($"WorkBuddy 保护防线: {(report.WorkBuddyVulnerable ? "缺少 mode: none (易被带偏)" : "正常")}");
+
+        if (report.Details.Count > 0)
+        {
+            Console.WriteLine("\n[详细排查取证项]:");
+            foreach (var d in report.Details)
+            {
+                Console.WriteLine($"  - {d}");
+            }
+        }
+
+        Console.WriteLine("\n" + (report.HasAnomaly ? "【告警】检测到异常！建议执行: disk-guardian --fix-proxy 进行一键安全清洗。" : "【健康】网络与代理状态良好，未发现幽灵残留冲突。"));
+        return report.HasAnomaly ? 1 : 0;
+    }
+
+    private static int RunFixProxy()
+    {
+        Console.WriteLine("=== disk-guardian 幽灵代理安全清洗与修复 ===\n");
+        var res = ProxyDoctor.Repair(hardenWorkBuddy: true);
+        if (res.Succeeded)
+        {
+            Console.WriteLine("[修复成功] 已执行以下安全恢复步骤:");
+            foreach (var act in res.ActionsTaken)
+            {
+                Console.WriteLine($"  ✓ {act}");
+            }
+            Console.WriteLine($"\n系统设置已向操作系统全量广播生效。备份文件保存在:\n  {res.BackupPath}");
+            return 0;
+        }
+        else
+        {
+            Console.WriteLine($"[修复失败]: {res.ErrorMessage}");
+            return 1;
+        }
     }
 }

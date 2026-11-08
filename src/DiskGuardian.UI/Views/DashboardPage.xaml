@@ -7,7 +7,7 @@
     mc:Ignorable="d">
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Spacing="24" Margin="0,0,16,24">
+        <StackPanel Spacing="20" Margin="0,0,16,24">
             <!-- 头部 -->
             <StackPanel Spacing="4">
                 <TextBlock Text="系统状态总览" FontSize="26" FontWeight="SemiBold"/>
@@ -19,6 +19,38 @@
             <InfoBar Title="25H2 蓝屏观察期防护生效中" 
                      Message="已锁定 winevt 事件日志、崩溃转储 (dmp) 与专用转储文件 (dedicateddumpfile.sys)，硬禁区代码化自测 100% PASS。" 
                      IsOpen="True" Severity="Success" IsClosable="False"/>
+
+            <!-- 系统网络与幽灵代理体检卡片 (ProxyDoctor) -->
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                    CornerRadius="8" Padding="18,16">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Spacing="6" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <FontIcon x:Name="ProxyStatusIcon" Glyph="&#xE774;" FontSize="18" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
+                            <TextBlock Text="网络与幽灵代理体检" FontWeight="SemiBold" FontSize="16"/>
+                            <Border x:Name="ProxyStatusBadge" Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="8,2">
+                                <TextBlock x:Name="ProxyBadgeText" Text="检测中..." FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            </Border>
+                        </StackPanel>
+                        <TextBlock x:Name="ProxySummaryText" Text="正在分析注册表 Connections 二进制与回环死端口..." 
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="13"/>
+                        <TextBlock x:Name="ProxyDetailText" Text="" 
+                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}" FontSize="11" TextWrapping="Wrap"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <Button Content="重新体检" Click="RefreshProxy_Click"/>
+                        <Button x:Name="FixProxyButton" Content="一键安全修复" Click="FixProxy_Click" 
+                                Style="{ThemeResource AccentButtonStyle}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
 
             <!-- 磁盘容量卡片组 -->
             <Grid ColumnSpacing="16">
@@ -57,7 +89,7 @@
             </Grid>
 
             <!-- 差异化能力亮点 -->
-            <TextBlock Text="核心守护亮点" FontSize="18" FontWeight="SemiBold" Margin="0,8,0,0"/>
+            <TextBlock Text="核心守护亮点" FontSize="18" FontWeight="SemiBold" Margin="0,4,0,0"/>
             <Grid ColumnSpacing="16">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>

@@ -1,50 +1,82 @@
-# 文档与记忆重构验证报告 (Walkthrough)
+# ProxyDoctor 幽灵代理诊断与安全修复实施报告 (Walkthrough)
 
-## 1. 重构执行总结
-本次重构彻底解决了 `docs/` 和 `.workbuddy/memory/MEMORY.md` 中存在的“反复横跳、职责错位、日志追加式污染、缺乏事故溯源”等认知债务，并将**真实蓝屏排障事实**提升为规则不可绕过的基石。
+## 1. 需求与问题背景
+当用户使用代理软件（如 FlClash、Clash Verge）并在非正常退出或卸载时，WinINET 注册表通常会出现“表面关闭、深层残留”的幽灵状态：
+- **注册表 DWORD**：`HKCU\...\Internet Settings\ProxyEnable` 显示为 `0`（关闭）。
+- **二进制脏数据**：`HKCU\...\Internet Settings\Connections` 下的 `DefaultConnectionSettings` 与 `SavedLegacySettings` 二进制数据中，第 8 字节 flags 仍残留 `0x02` 或 `0x03`，且保存着 `127.0.0.1:7890` 等端口。
+- **环境污染扩散**：Electron 框架应用（如 WorkBuddy、Cursor 等）启动时通过底层库读取二进制设置，误以为代理已开启，便主动注入 `HTTP_PROXY="http://127.0.0.1:7890"` 到主进程和子进程环境变量中。
+- **最终后果**：由于本地没有监听该端口的代理服务，终端工具链（git、curl、npm、Claude Code）所有网络请求均被强行丢向死端口，报 `actively refused (10061)` 瘫痪。
 
-### 目录与资产对照
+## 2. 解决方案与核心架构
 
-| 原散乱文件 | 重构后位置 | 状态与改动要点 |
-| :--- | :--- | :--- |
-| *(原缺失的事故台账)* | `docs/incidents/2026-11-04-bsod-incident-and-rules.md` | **【核心新建】** 固化 Bellator N176 机器 5 次 BugCheck、事件断链教训，建立事故到 `HARD_DENY` 的一对一映射。 |
-| `docs/体系设计-证据台账-2026-11-07.md` | `docs/architecture/evidence-ledger-design.md` | **【规范化】** 确立五层契约模型 (L0~L4) 与机器状态 (OBSERVATION) 动态机制。 |
-| `docs/Dism++黑盒取证与整合方案-2026-11-07.md`<br/>+ `docs/评估2026-11-07.md` | `docs/research/dism-reverse-and-integration.md` | **【合并提炼】** 吸收原《评估》的执行摘要，保留 71 条规则黑盒取证、冲突表与开发工具链 0 命中证据，废弃冗余的独立《评估》文件。 |
-| `docs/dism-rules-inventory.json` | `docs/data/dism-rules-inventory.json` | **【规整】** 机器数据归集到独立数据目录。 |
-| `docs/调研-2026-11-07.md` | `docs/research/archive/2026-11-07-wheel-research.md` | **【历史归档】** 文首清晰声明“Dism++ 无法提取规则”已被推翻，保留轮子调研与选型价值。 |
-| *(无总览)* | `docs/README.md` | **【新建索引】** 提供全景导航、文档定位与关联仓库边界说明。 |
-| `.workbuddy/memory/MEMORY.md` | 同路径（彻底重构） | **【瘦身收敛】** 剔除“推翻上一节”等流水账和 110 行大段重复，精简至 4 大核心模块，蓝屏事故证据列为第二节。 |
+遵循 C.T.I.V. 流程与 Windows 桌面环境安全规范（严禁杀死 `explorer.exe`），在 `DiskGuardian` 中实现了纯原生 C# 的诊断与修复引擎：
+
+```mermaid
+graph TD
+    A[启动诊断 Diagnose] --> B[检查注册表 ProxyEnable / ProxyServer]
+    A --> C[解析 Connections 二进制 Byte 8 标记]
+    A --> D[250ms TCP 探测本地回环端口健康度]
+    A --> E[排查 User 级环境变量 HTTP_PROXY]
+    A --> F[检查 WorkBuddy settings.json 免疫配置]
+    
+    B & C & D & E & F --> G{是否存在幽灵代理或隐患?}
+    G -- 无 --> H[系统网络配置健康]
+    G -- 有 --> I[一键安全修复 Repair]
+    
+    I --> J[安全导出 .reg 注册表备份]
+    I --> K[清洗 Connections 二进制字节为 0x01 直连]
+    I --> L[清除 User 环境变量污染]
+    I --> M[WorkBuddy 注入 mode: none 免疫加固]
+    I --> N[WinINet API 广播刷新生效 - 免重启无感]
+```
+
+### 核心亮点
+1. **纯 C# 原生实现，零第三方依赖**：
+   - 核心文件位于 [`DiskGuardian.Core/Diagnostics/ProxyDoctor.cs`](file:///d:/4rchive/Code/disk-guardian/src/DiskGuardian.Core/Diagnostics/ProxyDoctor.cs)。
+2. **符合桌面安全准则（`windows_desktop_safety.md`）**：
+   - 使用 WinINet 原生 API `InternetSetOptionW`（常量 `39=INTERNET_OPTION_SETTINGS_CHANGED`, `37=INTERNET_OPTION_REFRESH`）向系统广播代理配置更新。
+   - **绝对不杀 `explorer.exe`**，不破坏任何基于 WinUI 3 / WPF 的桌面微件与 Shell 窗口。
+3. **安全第一：预修备份**：
+   - 在动注册表前自动调用 Windows 原生 `reg export` 导出备份至 `out/proxy_backup_<timestamp>.reg`。
+4. **彻底治本与防御加固**：
+   - 修复二进制配置中的 flags（清除 `0x02` 位，强制置 `0x01` 直连模式），同时将序列号递增防缓存。
+   - 自动在 `~/.workbuddy/settings.json` 中配置 `"mode": "none"`，彻底切断 Electron 误读系统代理的通道。
 
 ---
 
-## 2. 自动化自检验证
+## 3. CLI 与 WinUI 3 落地
 
-执行命令：
-```pwsh
-python guardian.py --check-rules
-```
+### 3.1 CLI 命令行工具
+通过 `DiskGuardian.Cli` 提供极简运维指令：
+- **诊断**：`DiskGuardian.Cli.exe --check-proxy`
+  - 自动输出代理状态报告与隐患告警。
+  - 存在异常时以 exit code 1 返回，健康时返回 0，可无缝接入 CI 或定时脚本。
+- **修复**：`DiskGuardian.Cli.exe --fix-proxy`
+  - 自动完成备份、注册表修复、广播刷新与 WorkBuddy 配置加固。
 
-**验证结果**：
-- `HARD_DENY` 自检断言 **18 项全部 PASS (15 项成功拦截，3 项允许)**。
-- 规则解析与等级过滤功能正常运行，扫描状态完整（`level<=1`，可清理 296.7 MiB）。
-- 退出码 `rc=0`，代码执行逻辑与硬禁区无任何损坏。
+### 3.2 WinUI 3 原生 Fluent 桌面界面
+在 [`DashboardPage.xaml`](file:///d:/4rchive/Code/disk-guardian/src/DiskGuardian.UI/Views/DashboardPage.xaml) 新增“网络与幽灵代理体检”卡片：
+- **实时状态感知**：页面加载时异步体检，用 Fluent 图标（ShieldCheckmark 绿色 / DismissCircle 红色 / Warning 橙色）指示状态。
+- **一键安全修复**：点击【一键安全修复】弹出 Fluent 对话框，二次确认后异步执行，实时输出修复步骤日志与备份路径。
 
 ---
 
-## 3. Git 状态核验
+## 4. 验证结果
 
-```text
- M .workbuddy/memory/MEMORY.md
- D docs/Dism++黑盒取证与整合方案-2026-11-07.md
- D docs/dism-rules-inventory.json
- D docs/体系设计-证据台账-2026-11-07.md
- D docs/评估-用REA重写Dism++-2026-11-07.md
- D docs/调研-2026-11-07.md
-?? docs/README.md
-?? docs/architecture/
-?? docs/data/
-?? docs/incidents/
-?? docs/research/
-```
-目录层级与文件职责完全达标，消除了所有顶级堆平的碎片。
+1. **项目整体编译**：
+   ```powershell
+   dotnet build src/DiskGuardian.UI/DiskGuardian.UI.csproj -c Release -p:Platform=x64 -r win-x64
+   ```
+   输出：**0 警告，0 错误**。
 
+2. **引擎 21 项安全自测**：
+   ```powershell
+   dotnet run --project src/DiskGuardian.Cli/DiskGuardian.Cli.csproj -- --check-rules
+   ```
+   输出：**ALL 21 SELF-TEST ASSERTIONS PASSED!**（原有规则与安全机制无任何破坏）。
+
+3. **CLI 实机诊断测试**：
+   ```powershell
+   dotnet run --project src/DiskGuardian.Cli/DiskGuardian.Cli.csproj -- --check-proxy
+   ```
+   输出：成功探测并精准识别系统当前的代理状态与 WorkBuddy 的潜在风险项。
