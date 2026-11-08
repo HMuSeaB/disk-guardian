@@ -11,12 +11,13 @@ on:
       - master
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build & Package (Windows x64)
     runs-on: windows-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout Source
@@ -34,74 +35,26 @@ jobs:
         run: |
           dotnet restore src/DiskGuardian.sln -p:Platform=x64 -p:RuntimeIdentifier=win-x64
 
-      - name: Run Core Safety Self-Test (21 Assertions)
+      - name: Build, Test & Package
         shell: pwsh
         run: |
-          dotnet run --project src/DiskGuardian.Cli/DiskGuardian.Cli.csproj -c Release --no-restore -p:Platform=x64 -p:RuntimeIdentifier=win-x64 -- --check-rules
-
-      - name: Publish WinUI 3 Desktop App & Clean Launcher
-        shell: pwsh
-        run: |
-          # 1. 构建主程序依赖库到 app/ 目录
-          dotnet publish src/DiskGuardian.UI/DiskGuardian.UI.csproj -c Release -r win-x64 --self-contained false -p:Platform=x64 -p:WindowsPackageType=None -p:AppxPackage=false -p:WindowsAppSDKSelfContained=true -o artifacts/package-winui3/app
-
-          # 2. 构建根目录轻量启动器 DiskGuardian.exe
-          dotnet publish src/DiskGuardian.Launcher/DiskGuardian.Launcher.csproj -c Release -r win-x64 --self-contained false -p:Platform=x64 -o artifacts/package-launcher
-          Copy-Item artifacts/package-launcher/DiskGuardian.exe artifacts/package-winui3/ -Force
-
-          # 3. 复制 rules.json 与说明文档
-          Copy-Item rules.json artifacts/package-winui3/ -Force
-          Copy-Item rules.json artifacts/package-winui3/app/ -Force
-
-          @"
-========================================================================
-  DiskGuardian (磁盘守护者) - Windows 原生系统与空间守护工具
-========================================================================
-
-【使用指南】:
-  1. 双击根目录的【DiskGuardian.exe】直接启动应用（WinUI 3 原生界面）。
-  2. 依赖项及运行时已统一收纳在 app/ 目录中，请勿删除 app 目录。
-  3. 核心清理规则位于 rules.json，支持自由自定义。
-
-【核心特性】:
-  - 核心安全硬禁区代码化保护：锁定事件日志 (winevt)、转储文件 (dmp) 与系统组件。
-  - 极速双清理模式：支持【直接永久清理】（零回收站卡顿）与【移入回收站】（安全防误杀）。
-  - Windows 幽灵代理诊断与安全修复 (ProxyDoctor)：免重启广播刷新，绝不杀 explorer.exe。
-========================================================================
-"@ | Out-File -FilePath artifacts/package-winui3/使用说明.txt -Encoding utf8
-
-          # 4. 去除无用的 pdb 调试符号以大幅精简体积和文件数
-          Get-ChildItem -Path artifacts/package-winui3 -Recurse -Filter *.pdb | Remove-Item -Force
-
-      - name: Publish CLI Tool
-        shell: pwsh
-        run: |
-          dotnet publish src/DiskGuardian.Cli/DiskGuardian.Cli.csproj -c Release -r win-x64 --self-contained false -p:Platform=x64 -o artifacts/package-cli
-          Copy-Item rules.json artifacts/package-cli/ -Force
-          Get-ChildItem -Path artifacts/package-cli -Recurse -Filter *.pdb | Remove-Item -Force
-
-      - name: Create Clean ZIP Packages
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path artifacts/dist
-          Compress-Archive -Path artifacts/package-winui3/* -DestinationPath artifacts/dist/disk-guardian-winui3-win-x64.zip
-          Compress-Archive -Path artifacts/package-cli/* -DestinationPath artifacts/dist/disk-guardian-cli-win-x64.zip
+          .\build_release.ps1
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: disk-guardian-windows-x64
           path: |
-            artifacts/dist/*.zip
+            dist/*.zip
           retention-days: 14
 
-      - name: Create GitHub Release (On Tag Push)
+      - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            artifacts/dist/disk-guardian-winui3-win-x64.zip
-            artifacts/dist/disk-guardian-cli-win-x64.zip
+            dist/disk-guardian-winui3-win-x64.zip
+            dist/disk-guardian-cli-win-x64.zip
           draft: false
           prerelease: false
           generate_release_notes: true
