@@ -41,13 +41,6 @@ if ($gccPath -and (Test-Path "src/launcher.c")) {
     Remove-Item -Recurse -Force $launcherOut
 }
 
-# 增加一键备用批处理脚本，双重保险
-@"
-@echo off
-cd /d "%~dp0app"
-start "" "DiskGuardian.UI.exe"
-"@ | Out-File -FilePath "$winuiPkg/启动DiskGuardian.bat" -Encoding ascii
-
 # 复制配置文件与生成说明
 Copy-Item rules.json $winuiPkg/ -Force
 Copy-Item rules.json "$winuiPkg/app/" -Force
@@ -58,14 +51,15 @@ Copy-Item rules.json "$winuiPkg/app/" -Force
 ========================================================================
 
 【使用指南】:
-  1. 双击根目录的【DiskGuardian.exe】（或【启动DiskGuardian.bat】）直接启动应用。
-  2. 全部 170+ 个系统依赖已统一整洁收纳在 app/ 目录中，请勿删除 app 目录。
-  3. 核心清理规则位于 rules.json，支持自由自定义。
+  1. 双击根目录的【DiskGuardian.exe】直接启动应用（秒级静默拉起，零黑框控制台闪烁）。
+  2. 若需放置于桌面，可在应用界面右上角点击【创建桌面快捷方式】，系统将自动生成规范的 Windows 快捷方式 (DiskGuardian.lnk)。
+  3. 全部 170+ 个系统依赖已统一整洁收纳在 app/ 目录中，请保持目录完整。
+  4. 核心清理规则位于 rules.json，支持自由自定义。
 
 【核心特性】:
-  - 核心安全硬禁区代码化保护：锁定事件日志 (winevt)、转储文件 (dmp) 与系统组件。
+  - 核心安全硬禁区代码化保护：锁定事件日志 (winevt)、转储文件 (dmp) 与系统核心组件。
   - 极速双清理模式：支持【直接永久清理】（零回收站卡顿）与【移入回收站】（安全防误杀）。
-  - Windows 幽灵代理诊断与安全修复 (ProxyDoctor)：免重启广播刷新，绝不杀 explorer.exe。
+  - Windows 幽灵代理诊断与安全修复 (ProxyDoctor)：免重启 WinINET 广播刷新，绝不杀 explorer.exe。
 ========================================================================
 "@ | Out-File -FilePath "$winuiPkg/使用说明.txt" -Encoding utf8
 

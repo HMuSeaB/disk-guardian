@@ -31,7 +31,11 @@ public sealed record ProxyDiagnosisResult(
     string PortStatusDisplay,
     long? PortLatencyMs,
     string WorkBuddyStatusDisplay,
-    string EnvStatusDisplay);
+    string EnvStatusDisplay,
+    string GitStatusDisplay,
+    string AppHardeningDisplay,
+    string ToolchainStatusDisplay,
+    bool WorkBuddyDetected);
 
 public sealed record ProxyRepairResult(
     bool Succeeded,
@@ -212,40 +216,110 @@ public static class ProxyDoctor
             envStatusDisplay = "无法读取环境变量";
         }
 
-        // 7. WorkBuddy 易感漏洞检查
+        // 7. Git 全局代理配置检查 (~/.gitconfig)
+        string? gitProxy = null;
+        bool deadGitProxy = false;
+        string gitStatusDisplay;
+        try
+        {
+            var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            var gitConfig = Path.Combine(userProfile, ".gitconfig");
+            if (File.Exists(gitConfig))
+            {
+                gitProxy = ParseGitProxy(gitConfig);
+                if (!string.IsNullOrWhiteSpace(gitProxy))
+                {
+                    var (gHost, gPort) = ParseProxyEndpoint(gitProxy);
+                    if (gPort.HasValue && IsLoopbackHost(gHost))
+                    {
+                        var (gListening, _) = TestPort(gHost, gPort.Value);
+                        if (!gListening)
+                        {
+                            deadGitProxy = true;
+                            gitStatusDisplay = $"🔴 残留死代理 ({gitProxy})";
+                            details.Add($"[Git 代理死锁] ~/.gitconfig 中配置了 http.proxy = {gitProxy}，但该端口未监听，会导致 git clone/push 报 10061 拒绝连接。");
+                        }
+                        else
+                        {
+                            gitStatusDisplay = $"活跃代理 ({gitProxy})";
+                        }
+                    }
+                    else
+                    {
+                        gitStatusDisplay = $"已配置: {gitProxy}";
+                    }
+                }
+                else
+                {
+                    gitStatusDisplay = "未配置 (直连模式)";
+                }
+            }
+            else
+            {
+                gitStatusDisplay = "未发现配置文件 (直连)";
+            }
+        }
+        catch
+        {
+            gitStatusDisplay = "读取异常";
+        }
+
+        // 8. 已识别下游工具链防线检查 (如 WorkBuddy 等)
+        bool workBuddyDetected = false;
         bool workBuddyVulnerable = false;
         string wbStatusDisplay;
+        string appHardeningDisplay;
         try
         {
             var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             var wbSettings = Path.Combine(userProfile, ".workbuddy", "settings.json");
             if (File.Exists(wbSettings))
             {
+                workBuddyDetected = true;
                 var json = File.ReadAllText(wbSettings);
                 using var doc = JsonDocument.Parse(json);
                 if (doc.RootElement.TryGetProperty("mode", out var modeProp) && modeProp.GetString() == "none")
                 {
-                    wbStatusDisplay = "🟢 已免疫 (mode: none)";
+                    wbStatusDisplay = "🟢 已开启直连隔离 (mode: none)";
+                    appHardeningDisplay = "🟢 WorkBuddy 已隔离保护";
                 }
                 else
                 {
                     workBuddyVulnerable = true;
-                    wbStatusDisplay = "⚠️ 易感 (缺少 mode: none)";
-                    details.Add("[下游弱点] WorkBuddy (~/.workbuddy/settings.json) 缺少 \"mode\": \"none\" 配置，在系统代理残留时会被迫注入脏代理。");
+                    wbStatusDisplay = "⚠️ 易感 (未设置 mode: none)";
+                    appHardeningDisplay = "⚠️ WorkBuddy 建议开启直连隔离";
+                    details.Add("[应用隔离建议] 检测到已安装 WorkBuddy，建议开启 mode: none 隔离，避免系统代理残留时被带偏。");
                 }
             }
             else
             {
-                wbStatusDisplay = "⚪ 未发现配置文件";
+                wbStatusDisplay = "未安装 (无需加固)";
+                appHardeningDisplay = "纯净 (未安装易感应用)";
             }
         }
         catch
         {
             wbStatusDisplay = "检测异常";
+            appHardeningDisplay = "检测异常";
         }
 
-        // 8. 综合评定
-        bool hasAnomaly = inconsistentFlags || (isDeadPort && (proxyEnable || binaryManualProxy)) || deadUserEnv;
+        // 综合下游工具链状态
+        string toolchainStatusDisplay;
+        if (deadUserEnv || deadGitProxy)
+        {
+            toolchainStatusDisplay = "🔴 检测到下游死端口污染";
+        }
+        else if (workBuddyVulnerable)
+        {
+            toolchainStatusDisplay = "🟡 良好 (存在可选应用加固项)";
+        }
+        else
+        {
+            toolchainStatusDisplay = "🟢 纯净健康 (无外部代理污染)";
+        }
+
+        // 9. 综合评定
+        bool hasAnomaly = inconsistentFlags || (isDeadPort && (proxyEnable || binaryManualProxy)) || deadUserEnv || deadGitProxy;
 
         string summary;
         if (hasAnomaly)
@@ -256,6 +330,8 @@ public static class ProxyDoctor
                 summary = "⚠️ 注册表存在幽灵代理标志冲突 (底层仍标记手动代理)";
             else if (isDeadPort)
                 summary = $"⚠️ 代理死端口：{proxyServer} 未在监听，请求将被拒";
+            else if (deadGitProxy)
+                summary = "⚠️ Git 配置残留失效代理，终端网络将被拒";
             else
                 summary = "⚠️ 检测到用户环境变量残留失效代理";
         }
@@ -288,7 +364,11 @@ public static class ProxyDoctor
             PortStatusDisplay: portStatusDisplay,
             PortLatencyMs: portLatencyMs,
             WorkBuddyStatusDisplay: wbStatusDisplay,
-            EnvStatusDisplay: envStatusDisplay);
+            EnvStatusDisplay: envStatusDisplay,
+            GitStatusDisplay: gitStatusDisplay,
+            AppHardeningDisplay: appHardeningDisplay,
+            ToolchainStatusDisplay: toolchainStatusDisplay,
+            WorkBuddyDetected: workBuddyDetected);
     }
 
     private static string InterpretBinaryFlag(byte flag)
@@ -571,5 +651,34 @@ public static class ProxyDoctor
             sw.Stop();
             return (false, sw.ElapsedMilliseconds);
         }
+    }
+
+    private static string? ParseGitProxy(string gitConfigPath)
+    {
+        try
+        {
+            var lines = File.ReadAllLines(gitConfigPath);
+            bool inHttp = false;
+            foreach (var line in lines)
+            {
+                var trimmed = line.Trim();
+                if (trimmed.StartsWith("[") && trimmed.EndsWith("]"))
+                {
+                    inHttp = trimmed.Equals("[http]", StringComparison.OrdinalIgnoreCase);
+                    continue;
+                }
+
+                if (inHttp && trimmed.StartsWith("proxy", StringComparison.OrdinalIgnoreCase))
+                {
+                    var parts = trimmed.Split('=', 2);
+                    if (parts.Length == 2)
+                    {
+                        return parts[1].Trim().Trim('"', '\'');
+                    }
+                }
+            }
+        }
+        catch { }
+        return null;
     }
 }

@@ -14,6 +14,18 @@ public static class Program
     {
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
+        if (args.Contains("--create-shortcut"))
+        {
+            var (ok, path, err) = ShortcutManager.CreateDesktopShortcut();
+            if (ok)
+            {
+                Console.WriteLine($"[成功] 已在桌面创建快捷方式: {path}");
+                return 0;
+            }
+            Console.WriteLine($"[失败] 创建桌面快捷方式失败: {err}");
+            return 1;
+        }
+
         if (args.Contains("--check-rules"))
         {
             return RunCheckRules();
@@ -152,7 +164,15 @@ public static class Program
 
         Console.WriteLine("\n--- 下游环境与工具链检查 ---");
         Console.WriteLine($"  * 用户环境变量: {report.EnvStatusDisplay}");
-        Console.WriteLine($"  * WorkBuddy防线: {report.WorkBuddyStatusDisplay}");
+        Console.WriteLine($"  * Git 全局代理: {report.GitStatusDisplay}");
+        if (report.WorkBuddyDetected)
+        {
+            Console.WriteLine($"  * WorkBuddy防线: {report.WorkBuddyStatusDisplay}");
+        }
+        else
+        {
+            Console.WriteLine($"  * 应用隔离加固: {report.AppHardeningDisplay}");
+        }
 
         if (report.Details.Count > 0)
         {

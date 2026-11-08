@@ -1,4 +1,4 @@
-# 任务看板 (Task Board) - 体验与发布三大痛点治理
+# 任务看板 (Task Board) - 体验与发布痛点治理
 
 - [x] 任务 1: 代理体检详情可视化与丰富表达 <!-- id: 1 -->
   - [x] 扩展 `ProxyDoctor.cs`，丰富代理类型、服务器端口、延迟、标志位解析与配置细节
@@ -10,8 +10,14 @@
   - [x] 大量小碎片文件（>500 项）弹窗智能推荐分流，避免 Windows 回收站卡死
   - [x] 调优 `RecyclePage.xaml` 帮助用户一键快速清空当前被塞满的回收站
 - [x] 任务 3: 发布包极简收纳与 Release 自动化发布 <!-- id: 3 -->
-  - [x] 增加轻量启动器 `DiskGuardian.Launcher`，打包生成根目录 `DiskGuardian.exe`
-  - [x] 优化 `.github/workflows/build.yml`：收纳 170+ 个 DLL 至 `app/` 目录，去除 `.pdb`
-  - [x] 支持打 Tag 自动发布 GitHub Release 与产物上传
-- [x] 任务 4: 本地编译、21 项断言自测与功能验证 <!-- id: 4 -->
-- [x] 任务 5: 推送至 master，触发并验证 GitHub Actions 流水线 <!-- id: 5 -->
+  - [x] 原生 Win32 C 启动器 `launcher.c` 编译生成 18KB 零依赖 `DiskGuardian.exe`
+  - [x] 规范发布目录树：全部 170+ 依赖收纳进 `app/` 目录，根目录仅留启动器与配置
+- [x] 任务 4: 下游应用与工具链防线泛化 (去个性化硬编码) <!-- id: 4 -->
+  - [x] 将 WorkBuddy 专用检测泛化为通用“下游工具链与应用安全隔离”
+  - [x] 增加广大开发者高频踩坑项：Git 全局代理 (`~/.gitconfig` 中的 `http.proxy`) 残留死代理排查
+  - [x] 仅在真实检测到已安装对应应用时进行提示加固；未安装时显示纯净，不进行误导告警
+- [x] 任务 5: 规范快捷方式体系，彻底废弃 `.bat` <!-- id: 5 -->
+  - [x] 彻底从 `build_release.ps1` 和发布包中移除 `启动DiskGuardian.bat`
+  - [x] 实现 `ShortcutManager.cs`：利用 Win32 原生 COM 接口生成规范 `DiskGuardian.lnk`
+  - [x] 在 UI 主界面增加【创建桌面快捷方式】一键按钮，智能解析工作目录与图标
+- [x] 任务 6: 21 项安全硬禁区断言自测与完整编译验证 <!-- id: 6 -->

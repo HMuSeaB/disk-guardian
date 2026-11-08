@@ -45,6 +45,7 @@
                         </StackPanel>
 
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <Button Content="创建桌面快捷方式" Click="CreateShortcut_Click"/>
                             <Button Content="重新体检" Click="RefreshProxy_Click"/>
                             <Button x:Name="FixProxyButton" Content="一键安全修复" Click="FixProxy_Click" 
                                     Style="{ThemeResource AccentButtonStyle}"/>
@@ -119,6 +120,7 @@
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="注册表 DWORD (ProxyEnable):" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
@@ -133,8 +135,11 @@
                                 <TextBlock Grid.Row="3" Grid.Column="0" Text="用户环境变量 (HTTP_PROXY):" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 <TextBlock x:Name="DetailEnvProxyText" Grid.Row="3" Grid.Column="1" Text="--" FontSize="12"/>
 
-                                <TextBlock Grid.Row="4" Grid.Column="0" Text="WorkBuddy 免疫防线:" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                <TextBlock x:Name="DetailWorkBuddyText" Grid.Row="4" Grid.Column="1" Text="--" FontSize="12"/>
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Git 全局代理 (http.proxy):" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="DetailGitProxyText" Grid.Row="4" Grid.Column="1" Text="--" FontSize="12"/>
+
+                                <TextBlock Grid.Row="5" Grid.Column="0" x:Name="DetailAppHardeningLabel" Text="已识别应用安全隔离:" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="DetailAppHardeningText" Grid.Row="5" Grid.Column="1" Text="--" FontSize="12"/>
                             </Grid>
 
                             <TextBlock Text="取证分析日志:" FontSize="12" FontWeight="SemiBold" Margin="0,4,0,0"/>

@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using DiskGuardian.Core.Diagnostics;
+using DiskGuardian.Core.Safety;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -96,7 +97,18 @@ public partial class DashboardPage : Page
             DetailProxyOverrideText.Text = string.IsNullOrEmpty(report.ProxyOverride) ? "(未设置绕过)" : report.ProxyOverride;
             DetailPacText.Text = string.IsNullOrEmpty(report.AutoConfigUrl) ? "(未配置 PAC 脚本)" : report.AutoConfigUrl;
             DetailEnvProxyText.Text = report.EnvStatusDisplay;
-            DetailWorkBuddyText.Text = report.WorkBuddyStatusDisplay;
+            DetailGitProxyText.Text = report.GitStatusDisplay;
+
+            if (report.WorkBuddyDetected)
+            {
+                DetailAppHardeningLabel.Text = "WorkBuddy 隔离防线:";
+                DetailAppHardeningText.Text = report.WorkBuddyStatusDisplay;
+            }
+            else
+            {
+                DetailAppHardeningLabel.Text = "已识别应用安全隔离:";
+                DetailAppHardeningText.Text = report.AppHardeningDisplay;
+            }
 
             if (report.Details.Count > 0)
             {
@@ -104,12 +116,39 @@ public partial class DashboardPage : Page
             }
             else
             {
-                ProxyDetailLogsText.Text = "WinINET 注册表标志位一致，无死端口，环境变量纯净。";
+                ProxyDetailLogsText.Text = "WinINET 注册表标志位一致，无死端口，环境变量与 Git 配置纯净。";
             }
         }
         catch (Exception ex)
         {
             ProxySummaryText.Text = $"体检异常: {ex.Message}";
+        }
+    }
+
+    private async void CreateShortcut_Click(object sender, RoutedEventArgs e)
+    {
+        var (ok, path, err) = ShortcutManager.CreateDesktopShortcut();
+        if (ok)
+        {
+            var tip = new ContentDialog
+            {
+                Title = "桌面快捷方式创建成功",
+                Content = $"已成功在您的 Windows 桌面上生成规范快捷方式：\n\n{path}\n\n您现在可以随时从桌面双击直接启动 DiskGuardian。",
+                CloseButtonText = "好的",
+                XamlRoot = this.XamlRoot
+            };
+            await tip.ShowAsync();
+        }
+        else
+        {
+            var tip = new ContentDialog
+            {
+                Title = "创建快捷方式失败",
+                Content = $"未能生成桌面快捷方式：\n{err}",
+                CloseButtonText = "确定",
+                XamlRoot = this.XamlRoot
+            };
+            await tip.ShowAsync();
         }
     }
 
@@ -123,7 +162,7 @@ public partial class DashboardPage : Page
         var confirm = new ContentDialog
         {
             Title = "确认安全修复系统代理",
-            Content = "将为您执行以下安全修复步骤：\n\n1. 自动备份当前注册表原值至 out/ 目录（可随时还原）；\n2. 清洗 DefaultConnectionSettings 二进制标志位为纯直连；\n3. 通过 WinINet API 向操作系统广播刷新（绝不杀 explorer.exe）；\n4. 清理残留的用户环境变量并加固 WorkBuddy 防线。\n\n是否立即执行？",
+            Content = "将为您执行以下安全修复步骤：\n\n1. 自动备份当前注册表原值至 out/ 目录（可随时还原）；\n2. 清洗 DefaultConnectionSettings 二进制标志位为纯直连；\n3. 通过 WinINet API 向操作系统广播刷新（绝不杀 explorer.exe）；\n4. 清理残留的用户环境变量并在识别到下游应用时加固防线。\n\n是否立即执行？",
             PrimaryButtonText = "确认修复",
             CloseButtonText = "取消",
             XamlRoot = this.XamlRoot
