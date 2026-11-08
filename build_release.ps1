@@ -1,6 +1,6 @@
 ﻿$ErrorActionPreference = "Stop"
 
-Write-Host "=== DiskGuardian 本地一键构建与极简打包脚本 ===" -ForegroundColor Cyan
+Write-Host "=== DiskGuardian 一键构建与极简打包流水线 ===" -ForegroundColor Cyan
 
 $distDir = "dist"
 if (Test-Path $distDir) {
@@ -20,12 +20,33 @@ Write-Host "`n[2/4] 正在编译 WinUI 3 桌面端核心与收纳依赖..." -For
 $winuiPkg = "$distDir/DiskGuardian-WinUI3"
 dotnet publish src/DiskGuardian.UI/DiskGuardian.UI.csproj -c Release -r win-x64 --self-contained false -p:Platform=x64 -p:WindowsPackageType=None -p:AppxPackage=false -p:WindowsAppSDKSelfContained=true -o "$winuiPkg/app"
 
-# 3. 构建根目录极简启动器
-Write-Host "`n[3/4] 正在编译根目录极简启动器 (DiskGuardian.exe)..." -ForegroundColor Yellow
-$launcherOut = "$distDir/launcher-temp"
-dotnet publish src/DiskGuardian.Launcher/DiskGuardian.Launcher.csproj -c Release -r win-x64 --self-contained false -p:Platform=x64 -o $launcherOut
-Copy-Item "$launcherOut/DiskGuardian.exe" $winuiPkg/ -Force
-Remove-Item -Recurse -Force $launcherOut
+# 3. 构建根目录轻量启动器 (DiskGuardian.exe)
+Write-Host "`n[3/4] 正在构建根目录极简启动器 (DiskGuardian.exe)..." -ForegroundColor Yellow
+
+$gccPath = $null
+if (Get-Command gcc -ErrorAction SilentlyContinue) {
+    $gccPath = "gcc"
+} elseif (Test-Path "D:\Tools\msys64\mingw64\bin\gcc.exe") {
+    $gccPath = "D:\Tools\msys64\mingw64\bin\gcc.exe"
+}
+
+if ($gccPath -and (Test-Path "src/launcher.c")) {
+    Write-Host "使用原生 GCC 编译零依赖极简启动器..." -ForegroundColor Cyan
+    & $gccPath -O2 src/launcher.c -o "$winuiPkg/DiskGuardian.exe" -mwindows -s
+} else {
+    Write-Host "使用 .NET SingleFile 编译启动器..." -ForegroundColor Cyan
+    $launcherOut = "$distDir/launcher-temp"
+    dotnet publish src/DiskGuardian.Launcher/DiskGuardian.Launcher.csproj -c Release -r win-x64 --self-contained false -p:Platform=x64 -p:PublishSingleFile=true -o $launcherOut
+    Copy-Item "$launcherOut/DiskGuardian.exe" $winuiPkg/ -Force
+    Remove-Item -Recurse -Force $launcherOut
+}
+
+# 增加一键备用批处理脚本，双重保险
+@"
+@echo off
+cd /d "%~dp0app"
+start "" "DiskGuardian.UI.exe"
+"@ | Out-File -FilePath "$winuiPkg/启动DiskGuardian.bat" -Encoding ascii
 
 # 复制配置文件与生成说明
 Copy-Item rules.json $winuiPkg/ -Force
@@ -37,8 +58,8 @@ Copy-Item rules.json "$winuiPkg/app/" -Force
 ========================================================================
 
 【使用指南】:
-  1. 双击根目录的【DiskGuardian.exe】直接启动应用（WinUI 3 原生界面）。
-  2. 依赖项及运行时已统一收纳在 app/ 目录中，请勿删除 app 目录。
+  1. 双击根目录的【DiskGuardian.exe】（或【启动DiskGuardian.bat】）直接启动应用。
+  2. 全部 170+ 个系统依赖已统一整洁收纳在 app/ 目录中，请勿删除 app 目录。
   3. 核心清理规则位于 rules.json，支持自由自定义。
 
 【核心特性】:
@@ -48,7 +69,7 @@ Copy-Item rules.json "$winuiPkg/app/" -Force
 ========================================================================
 "@ | Out-File -FilePath "$winuiPkg/使用说明.txt" -Encoding utf8
 
-# 清理 pdb
+# 清理无用 pdb 调试符号
 Get-ChildItem -Path $winuiPkg -Recurse -Filter *.pdb | Remove-Item -Force
 
 # 4. 构建 CLI 运维端
@@ -67,5 +88,4 @@ Write-Host "`n========================================================" -Foregro
 Write-Host "构建成功！发布产物位于 dist 目录：" -ForegroundColor Green
 Write-Host "  - 桌面端极简包: dist/disk-guardian-winui3-win-x64.zip" -ForegroundColor White
 Write-Host "  - CLI 运维端包: dist/disk-guardian-cli-win-x64.zip" -ForegroundColor White
-Write-Host "解压桌面端后，根目录仅保留 DiskGuardian.exe 与必要文件，双击秒开！" -ForegroundColor Green
 Write-Host "========================================================`n" -ForegroundColor Green

@@ -16,7 +16,8 @@ public static class Program
     [STAThread]
     public static int Main(string[] args)
     {
-        var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+        var exePath = Environment.ProcessPath;
+        var baseDir = !string.IsNullOrEmpty(exePath) ? Path.GetDirectoryName(exePath)! : AppDomain.CurrentDomain.BaseDirectory;
         var appExe = Path.Combine(baseDir, "app", "DiskGuardian.UI.exe");
 
         if (!File.Exists(appExe))
@@ -29,26 +30,21 @@ public static class Program
         {
             MessageBoxW(
                 IntPtr.Zero,
-                $"找不到应用程序核心组件:\n{appExe}\n\n请确认解压时完整保留了 app 目录及全部依赖文件。",
+                $"找不到应用程序核心组件:\n{appExe}\n\n请确认解压时完整保留了 app 目录及全部依赖文件。\n(baseDir: {baseDir})",
                 "DiskGuardian 启动错误",
                 MB_OK | MB_ICONERROR);
             return 1;
         }
 
-        var psi = new ProcessStartInfo
-        {
-            FileName = appExe,
-            WorkingDirectory = Path.GetDirectoryName(appExe)!,
-            UseShellExecute = false
-        };
-
-        foreach (var arg in args)
-        {
-            psi.ArgumentList.Add(arg);
-        }
-
         try
         {
+            var psi = new ProcessStartInfo
+            {
+                FileName = appExe,
+                WorkingDirectory = Path.GetDirectoryName(appExe)!,
+                UseShellExecute = true
+            };
+
             Process.Start(psi);
             return 0;
         }
@@ -63,3 +59,4 @@ public static class Program
         }
     }
 }
+
