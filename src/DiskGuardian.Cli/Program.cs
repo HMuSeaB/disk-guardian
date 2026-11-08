@@ -137,17 +137,26 @@ public static class Program
     {
         Console.WriteLine("=== disk-guardian 系统网络与幽灵代理体检 (ProxyDoctor) ===\n");
         var report = ProxyDoctor.Diagnose();
-        Console.WriteLine($"体检结论: {report.Summary}");
-        Console.WriteLine($"DWORD ProxyEnable: {(report.ProxyEnable ? "1 (启用)" : "0 (关闭)")}");
-        Console.WriteLine($"ProxyServer 配置: {(string.IsNullOrEmpty(report.ProxyServer) ? "(未设置)" : report.ProxyServer)}");
-        Console.WriteLine($"底层标志位冲突: {(report.InconsistentFlags ? "是 (异常!)" : "否")}");
-        Console.WriteLine($"本地代理端口死锁: {(report.IsDeadLoopbackPort ? $"是 (端口 {report.DeadPort} 未监听!)" : "否")}");
-        Console.WriteLine($"用户环境变量代理: {(string.IsNullOrEmpty(report.UserEnvProxy) ? "(无)" : report.UserEnvProxy)}");
-        Console.WriteLine($"WorkBuddy 保护防线: {(report.WorkBuddyVulnerable ? "缺少 mode: none (易被带偏)" : "正常")}");
+        Console.WriteLine($"【总体结论】: {report.Summary}\n");
+
+        Console.WriteLine("--- 代理核心配置概览 ---");
+        Console.WriteLine($"  * 工作模式:     {report.ProxyTypeDisplay}");
+        Console.WriteLine($"  * 服务器地址:   {(string.IsNullOrEmpty(report.ProxyHost) ? "(无)" : report.ProxyHost)}");
+        Console.WriteLine($"  * 代理端口:     {(report.ProxyPort.HasValue ? report.ProxyPort.Value.ToString() : "(无)")}");
+        Console.WriteLine($"  * 本地端口状态: {report.PortStatusDisplay}");
+        Console.WriteLine($"  * WinINET标志:  {report.BinaryFlagDescription}");
+        if (!string.IsNullOrEmpty(report.AutoConfigUrl))
+            Console.WriteLine($"  * PAC 脚本:     {report.AutoConfigUrl}");
+        if (!string.IsNullOrEmpty(report.ProxyOverride))
+            Console.WriteLine($"  * 绕过名单:     {report.ProxyOverride}");
+
+        Console.WriteLine("\n--- 下游环境与工具链检查 ---");
+        Console.WriteLine($"  * 用户环境变量: {report.EnvStatusDisplay}");
+        Console.WriteLine($"  * WorkBuddy防线: {report.WorkBuddyStatusDisplay}");
 
         if (report.Details.Count > 0)
         {
-            Console.WriteLine("\n[详细排查取证项]:");
+            Console.WriteLine("\n--- 详细技术排查诊断取证 ---");
             foreach (var d in report.Details)
             {
                 Console.WriteLine($"  - {d}");

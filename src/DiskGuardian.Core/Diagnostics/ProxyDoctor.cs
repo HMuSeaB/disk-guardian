@@ -20,7 +20,18 @@ public sealed record ProxyDiagnosisResult(
     string? UserEnvProxy,
     bool WorkBuddyVulnerable,
     string Summary,
-    List<string> Details);
+    List<string> Details,
+    string ProxyTypeDisplay,
+    string ProxyHost,
+    int? ProxyPort,
+    string ProxyOverride,
+    string AutoConfigUrl,
+    string BinaryFlagHex,
+    string BinaryFlagDescription,
+    string PortStatusDisplay,
+    long? PortLatencyMs,
+    string WorkBuddyStatusDisplay,
+    string EnvStatusDisplay);
 
 public sealed record ProxyRepairResult(
     bool Succeeded,
@@ -31,7 +42,7 @@ public sealed record ProxyRepairResult(
 /// <summary>
 /// Windows 系统网络与幽灵代理（Ghost Proxy）诊断与修复医生：
 /// 1. 深度检测 WinINET 注册表二进制 Flags (Connections\DefaultConnectionSettings) 与 DWORD ProxyEnable 的冲突；
-/// 2. 针对 127.0.0.1 / localhost 本地代理进行 TCP 活跃度探测，识别已挂死的死端口；
+/// 2. 针对 127.0.0.1 / localhost 本地代理进行 TCP 活跃度探测与延迟测量，识别已挂死的死端口；
 /// 3. 检测环境变量 (HTTP_PROXY / HTTPS_PROXY) 脏数据污染与下游工具 (WorkBuddy) 易感漏洞；
 /// 4. 安全第一：先备份注册表，清洗二进制标志位，通过 WinINet API 广播刷新（坚决不杀死 explorer.exe）。
 /// </summary>
@@ -47,13 +58,15 @@ public static class ProxyDoctor
     private const int INTERNET_OPTION_REFRESH = 37;
 
     /// <summary>
-    /// 全面体检当前系统的代理状态
+    /// 全面体检当前系统的代理状态，提取丰富细节
     /// </summary>
     public static ProxyDiagnosisResult Diagnose()
     {
         var details = new List<string>();
         bool proxyEnable = false;
         string proxyServer = "";
+        string proxyOverride = "";
+        string autoConfigUrl = "";
         byte[]? defaultConn = null;
         byte[]? legacyConn = null;
 
@@ -65,6 +78,8 @@ public static class ProxyDoctor
             {
                 proxyEnable = Convert.ToInt32(reg.GetValue("ProxyEnable", 0)) != 0;
                 proxyServer = reg.GetValue("ProxyServer", "")?.ToString()?.Trim() ?? "";
+                proxyOverride = reg.GetValue("ProxyOverride", "")?.ToString()?.Trim() ?? "";
+                autoConfigUrl = reg.GetValue("AutoConfigURL", "")?.ToString()?.Trim() ?? "";
             }
 
             using var connReg = Registry.CurrentUser.OpenSubKey(ConnectionsKey, false);
@@ -82,49 +97,91 @@ public static class ProxyDoctor
         // 2. 分析二进制标志位
         // 结构分析：第 8 字节为代理模式 Flag (0x01: 直连; 0x02: 手动代理; 0x04: 自动检测; 0x08: PAC)
         bool binaryManualProxy = false;
-        byte binaryFlag = 0;
+        byte binaryFlag = 0x01;
         if (defaultConn != null && defaultConn.Length > 8)
         {
             binaryFlag = defaultConn[8];
             binaryManualProxy = (binaryFlag & 0x02) != 0;
         }
 
+        string binaryHex = $"0x{binaryFlag:X2}";
+        string binaryDesc = InterpretBinaryFlag(binaryFlag);
+
         // 3. 冲突判定：UI 显示关闭，但二进制底层仍有 0x02 手动代理标记
         bool inconsistentFlags = (!proxyEnable && binaryManualProxy);
         if (inconsistentFlags)
         {
-            details.Add($"[注册表冲突] DWORD ProxyEnable=0 (已关闭)，但 DefaultConnectionSettings 第 8 字节=0x{binaryFlag:X2} (仍含 0x02 手动代理标志)，容易导致 Electron/Chromium 读取后误认为代理开启。");
+            details.Add($"[注册表冲突] DWORD ProxyEnable=0 (表面关闭)，但 DefaultConnectionSettings 标志位={binaryHex} (仍含手动代理标志)，会导致 Electron/Chromium 读取后误认为代理开启并强行注入。");
         }
 
         // 4. 死端口探测 (针对 127.0.0.1 / localhost 回环代理)
         bool isDeadPort = false;
         int? parsedPort = null;
+        string parsedHost = "";
+        string portStatusDisplay;
+        long? portLatencyMs = null;
+
         if (!string.IsNullOrWhiteSpace(proxyServer))
         {
             var (host, port) = ParseProxyEndpoint(proxyServer);
+            parsedHost = host;
+            parsedPort = port;
+
             if (port.HasValue && IsLoopbackHost(host))
             {
-                parsedPort = port.Value;
-                bool isListening = IsPortListening(host, port.Value);
+                var (isListening, latency) = TestPort(host, port.Value);
+                portLatencyMs = latency;
+
                 if (!isListening)
                 {
                     isDeadPort = true;
+                    portStatusDisplay = $"🔴 端口闭塞 ({host}:{port.Value} 未监听)";
                     details.Add($"[死代理风险] 系统代理指向本地回环 {host}:{port.Value}，但当前该端口【无任何进程在监听】。如果开启代理，所有网络请求将报 actively refused (10061)。");
                 }
                 else
                 {
-                    details.Add($"[活跃代理] 检测到代理软件正在监听 {host}:{port.Value}。");
+                    portStatusDisplay = $"🟢 正在监听 ({latency}ms 响应正常)";
+                    details.Add($"[活跃代理] 检测到代理软件正在监听 {host}:{port.Value} (握手响应 {latency}ms)。");
                 }
             }
             else if (!string.IsNullOrWhiteSpace(host))
             {
+                portStatusDisplay = $"🌐 外部代理 ({host}:{port})";
                 details.Add($"[外部代理] 系统代理指向外部地址: {proxyServer}");
             }
+            else
+            {
+                portStatusDisplay = "⚪ 未配置有效主机";
+            }
+        }
+        else
+        {
+            portStatusDisplay = "⚪ 直连互联网 (无需端口)";
         }
 
-        // 5. 用户环境变量检查 (HTTP_PROXY / HTTPS_PROXY)
+        // 5. 工作模式判定
+        string proxyTypeDisplay;
+        if (proxyEnable)
+        {
+            if (!string.IsNullOrEmpty(proxyServer))
+                proxyTypeDisplay = "手动代理 (HTTP/SOCKS)";
+            else if (!string.IsNullOrEmpty(autoConfigUrl))
+                proxyTypeDisplay = "自动 PAC 脚本";
+            else
+                proxyTypeDisplay = "系统代理开启 (未设目标)";
+        }
+        else
+        {
+            if (inconsistentFlags)
+                proxyTypeDisplay = "⚠️ 幽灵残留 (表面关/底层开)";
+            else
+                proxyTypeDisplay = "系统直连 (未启用代理)";
+        }
+
+        // 6. 用户环境变量检查 (HTTP_PROXY / HTTPS_PROXY / ALL_PROXY)
         string? userEnvHttp = null;
         bool deadUserEnv = false;
+        string envStatusDisplay;
         try
         {
             userEnvHttp = Environment.GetEnvironmentVariable("HTTP_PROXY", EnvironmentVariableTarget.User)
@@ -133,21 +190,31 @@ public static class ProxyDoctor
 
             if (!string.IsNullOrWhiteSpace(userEnvHttp))
             {
+                envStatusDisplay = $"残留设置: {userEnvHttp}";
                 var (envHost, envPort) = ParseProxyEndpoint(userEnvHttp);
                 if (envPort.HasValue && IsLoopbackHost(envHost))
                 {
-                    if (!IsPortListening(envHost, envPort.Value))
+                    var (envListening, _) = TestPort(envHost, envPort.Value);
+                    if (!envListening)
                     {
                         deadUserEnv = true;
                         details.Add($"[环境变量污染] 用户环境变量 HTTP_PROXY 指向未监听的本地死端口: {userEnvHttp}");
                     }
                 }
             }
+            else
+            {
+                envStatusDisplay = "纯净 (无用户环境变量污染)";
+            }
         }
-        catch { }
+        catch
+        {
+            envStatusDisplay = "无法读取环境变量";
+        }
 
-        // 6. WorkBuddy 易感漏洞检查
+        // 7. WorkBuddy 易感漏洞检查
         bool workBuddyVulnerable = false;
+        string wbStatusDisplay;
         try
         {
             var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -156,16 +223,28 @@ public static class ProxyDoctor
             {
                 var json = File.ReadAllText(wbSettings);
                 using var doc = JsonDocument.Parse(json);
-                if (!doc.RootElement.TryGetProperty("mode", out var modeProp) || modeProp.GetString() != "none")
+                if (doc.RootElement.TryGetProperty("mode", out var modeProp) && modeProp.GetString() == "none")
+                {
+                    wbStatusDisplay = "🟢 已免疫 (mode: none)";
+                }
+                else
                 {
                     workBuddyVulnerable = true;
+                    wbStatusDisplay = "⚠️ 易感 (缺少 mode: none)";
                     details.Add("[下游弱点] WorkBuddy (~/.workbuddy/settings.json) 缺少 \"mode\": \"none\" 配置，在系统代理残留时会被迫注入脏代理。");
                 }
             }
+            else
+            {
+                wbStatusDisplay = "⚪ 未发现配置文件";
+            }
         }
-        catch { }
+        catch
+        {
+            wbStatusDisplay = "检测异常";
+        }
 
-        // 7. 综合评定
+        // 8. 综合评定
         bool hasAnomaly = inconsistentFlags || (isDeadPort && (proxyEnable || binaryManualProxy)) || deadUserEnv;
 
         string summary;
@@ -198,7 +277,29 @@ public static class ProxyDoctor
             UserEnvProxy: userEnvHttp,
             WorkBuddyVulnerable: workBuddyVulnerable,
             Summary: summary,
-            Details: details);
+            Details: details,
+            ProxyTypeDisplay: proxyTypeDisplay,
+            ProxyHost: parsedHost,
+            ProxyPort: parsedPort,
+            ProxyOverride: proxyOverride,
+            AutoConfigUrl: autoConfigUrl,
+            BinaryFlagHex: binaryHex,
+            BinaryFlagDescription: binaryDesc,
+            PortStatusDisplay: portStatusDisplay,
+            PortLatencyMs: portLatencyMs,
+            WorkBuddyStatusDisplay: wbStatusDisplay,
+            EnvStatusDisplay: envStatusDisplay);
+    }
+
+    private static string InterpretBinaryFlag(byte flag)
+    {
+        var parts = new List<string>();
+        if ((flag & 0x01) != 0) parts.Add("直连");
+        if ((flag & 0x02) != 0) parts.Add("手动代理");
+        if ((flag & 0x04) != 0) parts.Add("自动检测WPAD");
+        if ((flag & 0x08) != 0) parts.Add("PAC脚本");
+        if (parts.Count == 0) return $"0x{flag:X2} (无标志)";
+        return $"0x{flag:X2} ({string.Join("+", parts)})";
     }
 
     /// <summary>
@@ -272,10 +373,10 @@ public static class ProxyDoctor
             }
             catch (Exception ex)
             {
-                actions.Add($"清理环境变量时产生提示: {ex.Message}");
+                actions.Add($"清理用户环境变量跳过: {ex.Message}");
             }
 
-            // 步骤 5: 加固 WorkBuddy 防线
+            // 步骤 5: 加固 WorkBuddy 配置 (注入 "mode": "none")
             if (hardenWorkBuddy)
             {
                 try
@@ -284,87 +385,110 @@ public static class ProxyDoctor
                     var wbSettings = Path.Combine(userProfile, ".workbuddy", "settings.json");
                     if (File.Exists(wbSettings))
                     {
-                        var json = File.ReadAllText(wbSettings, Encoding.UTF8);
+                        var json = File.ReadAllText(wbSettings);
                         var node = JsonNode.Parse(json);
-                        if (node != null)
+                        if (node is JsonObject obj)
                         {
-                            node["mode"] = "none";
-                            var options = new JsonSerializerOptions { WriteIndented = true };
-                            File.WriteAllText(wbSettings, node.ToJsonString(options), Encoding.UTF8);
-                            actions.Add("已成功在 WorkBuddy settings.json 中注入 \"mode\": \"none\"，永久防御外部脏代理污染");
+                            obj["mode"] = "none";
+                            File.WriteAllText(wbSettings, obj.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+                            actions.Add("已在 ~/.workbuddy/settings.json 中注入 \"mode\": \"none\" 免疫配置");
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    actions.Add($"加固 WorkBuddy 时产生提示: {ex.Message}");
+                    actions.Add($"加固 WorkBuddy 配置跳过: {ex.Message}");
                 }
             }
 
-            return new ProxyRepairResult(true, backupPath, actions, null);
+            return new ProxyRepairResult(
+                Succeeded: true,
+                BackupPath: backupPath,
+                ActionsTaken: actions,
+                ErrorMessage: null);
         }
         catch (Exception ex)
         {
-            return new ProxyRepairResult(false, backupPath, actions, ex.Message);
+            return new ProxyRepairResult(
+                Succeeded: false,
+                BackupPath: backupPath,
+                ActionsTaken: actions,
+                ErrorMessage: ex.Message);
         }
     }
 
-    private static void SanitizeConnectionBinary(RegistryKey key, string valueName, List<string> actions)
+    private static void SanitizeConnectionBinary(RegistryKey connKey, string valueName, List<string> actions)
     {
-        var bytes = key.GetValue(valueName) as byte[];
-        if (bytes != null && bytes.Length > 8)
-        {
-            byte originalFlag = bytes[8];
-            // 剥离 0x02 (手动代理位)，确保 0x01 (直连位)
-            bytes[8] = (byte)((bytes[8] & ~0x02) | 0x01);
+        var data = connKey.GetValue(valueName) as byte[];
+        if (data == null || data.Length <= 8) return;
 
-            // 计数器 + 1
-            if (bytes.Length >= 8)
+        // 第 8 字节清掉 0x02 手动代理位，确保 0x01 直连生效
+        byte oldFlag = data[8];
+        byte newFlag = (byte)((oldFlag & ~0x02) | 0x01);
+
+        if (oldFlag != newFlag)
+        {
+            data[8] = newFlag;
+
+            // 递增计数器 (bytes 4..7)
+            if (data.Length >= 8)
             {
-                uint counter = BitConverter.ToUInt32(bytes, 4);
-                byte[] counterBytes = BitConverter.GetBytes(counter + 1);
-                Array.Copy(counterBytes, 0, bytes, 4, 4);
+                int counter = BitConverter.ToInt32(data, 4);
+                counter++;
+                var counterBytes = BitConverter.GetBytes(counter);
+                Array.Copy(counterBytes, 0, data, 4, 4);
             }
 
-            key.SetValue(valueName, bytes, RegistryValueKind.Binary);
-            actions.Add($"已清洗二进制键 {valueName}: Flag 0x{originalFlag:X2} -> 0x{bytes[8]:X2} (纯直连)");
+            connKey.SetValue(valueName, data, RegistryValueKind.Binary);
+            actions.Add($"已清洗 {valueName} 二进制标志位: 0x{oldFlag:X2} -> 0x{newFlag:X2}");
         }
     }
 
-    private static void ExportProxyRegistryBackup(string backupFilePath)
+    private static void ExportProxyRegistryBackup(string regFilePath)
     {
         var sb = new StringBuilder();
         sb.AppendLine("Windows Registry Editor Version 5.00");
         sb.AppendLine();
-        sb.AppendLine(@"[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Internet Settings]");
+        sb.AppendLine($@"[HKEY_CURRENT_USER\{InternetSettingsKey}]");
 
         using (var key = Registry.CurrentUser.OpenSubKey(InternetSettingsKey, false))
         {
             if (key != null)
             {
-                var pe = key.GetValue("ProxyEnable");
-                if (pe != null) sb.AppendLine($"\"ProxyEnable\"=dword:{Convert.ToInt32(pe):x8}");
-                var ps = key.GetValue("ProxyServer");
-                if (ps != null) sb.AppendLine($"\"ProxyServer\"=\"{ps}\"");
+                WriteRegValue(sb, "ProxyEnable", key.GetValue("ProxyEnable"), key.GetValueKind("ProxyEnable"));
+                WriteRegValue(sb, "ProxyServer", key.GetValue("ProxyServer"), key.GetValueKind("ProxyServer"));
+                WriteRegValue(sb, "ProxyOverride", key.GetValue("ProxyOverride"), key.GetValueKind("ProxyOverride"));
             }
         }
 
         sb.AppendLine();
-        sb.AppendLine(@"[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Internet Settings\Connections]");
-
+        sb.AppendLine($@"[HKEY_CURRENT_USER\{ConnectionsKey}]");
         using (var key = Registry.CurrentUser.OpenSubKey(ConnectionsKey, false))
         {
             if (key != null)
             {
-                AppendHexValue(sb, "DefaultConnectionSettings", key.GetValue("DefaultConnectionSettings") as byte[]);
-                AppendHexValue(sb, "SavedLegacySettings", key.GetValue("SavedLegacySettings") as byte[]);
+                WriteRegBinary(sb, "DefaultConnectionSettings", key.GetValue("DefaultConnectionSettings") as byte[]);
+                WriteRegBinary(sb, "SavedLegacySettings", key.GetValue("SavedLegacySettings") as byte[]);
             }
         }
 
-        File.WriteAllText(backupFilePath, sb.ToString(), Encoding.Unicode);
+        File.WriteAllText(regFilePath, sb.ToString(), Encoding.Unicode);
     }
 
-    private static void AppendHexValue(StringBuilder sb, string name, byte[]? bytes)
+    private static void WriteRegValue(StringBuilder sb, string name, object? val, RegistryValueKind kind)
+    {
+        if (val == null) return;
+        if (kind == RegistryValueKind.DWord)
+        {
+            sb.AppendLine($"\"{name}\"=dword:{Convert.ToInt32(val):x8}");
+        }
+        else if (kind == RegistryValueKind.String)
+        {
+            sb.AppendLine($"\"{name}\"=\"{val.ToString()?.Replace("\\", "\\\\")}\"");
+        }
+    }
+
+    private static void WriteRegBinary(StringBuilder sb, string name, byte[]? bytes)
     {
         if (bytes == null || bytes.Length == 0) return;
         sb.Append($"\"{name}\"=hex:");
@@ -420,7 +544,7 @@ public static class ProxyDoctor
         return (proxyStr, null);
     }
 
-    private static bool IsLoopbackHost(string host)
+    public static bool IsLoopbackHost(string host)
     {
         return host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
                host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
@@ -428,21 +552,24 @@ public static class ProxyDoctor
                host.Equals("::1", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool IsPortListening(string host, int port)
+    private static (bool IsListening, long LatencyMs) TestPort(string host, int port)
     {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {
             using var client = new TcpClient();
             var targetHost = host.Equals("0.0.0.0") ? "127.0.0.1" : host;
             var ar = client.BeginConnect(targetHost, port, null, null);
             bool success = ar.AsyncWaitHandle.WaitOne(TimeSpan.FromMilliseconds(250));
-            if (!success) return false;
+            sw.Stop();
+            if (!success) return (false, sw.ElapsedMilliseconds);
             client.EndConnect(ar);
-            return true;
+            return (true, sw.ElapsedMilliseconds);
         }
         catch
         {
-            return false;
+            sw.Stop();
+            return (false, sw.ElapsedMilliseconds);
         }
     }
 }

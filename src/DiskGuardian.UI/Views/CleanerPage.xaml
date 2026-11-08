@@ -122,12 +122,17 @@
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <TextBlock Text="已扫描勾选可释放:" FontSize="14"/>
                         <TextBlock x:Name="TotalSizeText" Text="0 B" FontSize="16" FontWeight="Bold" Foreground="{ThemeResource AccentAAFillColorDefaultBrush}"/>
+                        <TextBlock x:Name="TotalFilesText" Text="" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
                     </StackPanel>
-                    <TextBlock Text="点击【移入回收站】将仅处理已扫描且有可释放体积的勾选项（安全可撤销）" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <TextBlock Text="临时缓存建议【直接永久清理】（极速且不塞爆回收站）；代码依赖推荐【移入回收站】" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 </StackPanel>
 
-                <Button x:Name="ApplyButton" Grid.Column="1" Content="移入回收站 (安全清理)" 
-                        Click="ApplyButton_Click" Style="{ThemeResource AccentButtonStyle}" Padding="20,10"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <Button x:Name="ApplyRecycleButton" Content="移入回收站 (可撤销)" 
+                            Click="ApplyRecycleButton_Click" Padding="14,10"/>
+                    <Button x:Name="ApplyPermanentButton" Content="直接永久清理 (极速模式)" 
+                            Click="ApplyPermanentButton_Click" Style="{ThemeResource AccentButtonStyle}" Padding="16,10"/>
+                </StackPanel>
             </Grid>
         </Border>
     </Grid>

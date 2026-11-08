@@ -43,10 +43,15 @@ public partial class CleanerPage : Page
 
     private void UpdateTotal()
     {
-        long sum = _ruleRows
+        var readyRows = _ruleRows
             .Where(r => r.IsSelected && r.ScannedResult != null && r.ScannedResult.Status == "ready")
-            .Sum(r => r.SizeBytes);
+            .ToList();
+
+        long sum = readyRows.Sum(r => r.SizeBytes);
+        int files = readyRows.Sum(r => r.ScannedResult?.FilesCount ?? 0);
+
         TotalSizeText.Text = CleanerEngine.HumanSize(sum);
+        TotalFilesText.Text = files > 0 ? $"(约 {files:N0} 个文件/目录)" : "";
     }
 
     private void LevelCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -144,7 +149,17 @@ public partial class CleanerPage : Page
         }
     }
 
-    private async void ApplyButton_Click(object sender, RoutedEventArgs e)
+    private async void ApplyRecycleButton_Click(object sender, RoutedEventArgs e)
+    {
+        await ProcessCleanAsync(permanentMode: false);
+    }
+
+    private async void ApplyPermanentButton_Click(object sender, RoutedEventArgs e)
+    {
+        await ProcessCleanAsync(permanentMode: true);
+    }
+
+    private async Task ProcessCleanAsync(bool permanentMode)
     {
         if (_isScanning) return;
 
@@ -165,21 +180,51 @@ public partial class CleanerPage : Page
             return;
         }
 
-        var confirmDialog = new ContentDialog
-        {
-            Title = "确认安全清理",
-            Content = $"即将把选中的 {selected.Count} 个规则共计 {TotalSizeText.Text} 安全移入回收站（可随时撤销还原）。\n\n是否继续？",
-            PrimaryButtonText = "确认清理",
-            CloseButtonText = "取消",
-            XamlRoot = this.XamlRoot
-        };
+        int totalFileCount = selected.Sum(s => s.ScannedResult?.FilesCount ?? 0);
+        bool executePermanent = permanentMode;
 
-        var result = await confirmDialog.ShowAsync();
-        if (result != ContentDialogResult.Primary) return;
+        // 智能安全判断：若选择移入回收站，但文件数量极大 (> 500 个文件，如 Temp 或 Shader)
+        if (!permanentMode && totalFileCount > 500)
+        {
+            var warningDialog = new ContentDialog
+            {
+                Title = "⚠️ 检测到大量临时缓存碎片",
+                Content = $"当前选中的清理项中包含大量临时零散碎片（共约 {totalFileCount:N0} 个文件）。\n\n" +
+                          "• 如果将数千个小临时文件全部塞入系统回收站，Windows 会为每个文件创建独立索引，导致系统回收站严重卡顿与膨胀，甚至挤掉您此前的重要误删文件；\n\n" +
+                          "• 推荐选择【直接永久清理】进行毫秒级极速释放，绝不污染系统回收站。\n\n" +
+                          "请选择您的清理方式：",
+                PrimaryButtonText = "直接永久清理 (推荐极速)",
+                SecondaryButtonText = "坚持移入回收站",
+                CloseButtonText = "取消",
+                XamlRoot = this.XamlRoot
+            };
+
+            var choice = await warningDialog.ShowAsync();
+            if (choice == ContentDialogResult.None) return; // 取消
+            executePermanent = (choice == ContentDialogResult.Primary);
+        }
+        else
+        {
+            // 常规确认
+            var confirmDialog = new ContentDialog
+            {
+                Title = executePermanent ? "确认直接永久清理 (极速模式)" : "确认移入回收站 (可撤销)",
+                Content = executePermanent 
+                    ? $"即将彻底清理选中的 {selected.Count} 个规则共计 {TotalSizeText.Text}（约 {totalFileCount:N0} 个文件）。\n\n此模式跳过系统回收站直接物理释放，极速完成且不塞爆回收站。是否继续？"
+                    : $"即将把选中的 {selected.Count} 个规则共计 {TotalSizeText.Text} 安全移入系统回收站（可随时撤销还原）。\n\n是否继续？",
+                PrimaryButtonText = executePermanent ? "确认极速清理" : "确认移入回收站",
+                CloseButtonText = "取消",
+                XamlRoot = this.XamlRoot
+            };
+
+            var result = await confirmDialog.ShowAsync();
+            if (result != ContentDialogResult.Primary) return;
+        }
 
         ScanRing.IsActive = true;
-        ApplyButton.IsEnabled = false;
-        ScanStatusText.Text = "正在将选中项移入回收站...";
+        ApplyRecycleButton.IsEnabled = false;
+        ApplyPermanentButton.IsEnabled = false;
+        ScanStatusText.Text = executePermanent ? "正在直接物理清理..." : "正在将选中项移入回收站...";
 
         try
         {
@@ -188,7 +233,7 @@ public partial class CleanerPage : Page
             using var logger = new AuditLogger(logPath);
 
             var (freed, count, failed) = await Task.Run(() =>
-                _engine.ExecutePlan(planToExecute, selected.Select(s => s.Id), logger)
+                _engine.ExecutePlan(planToExecute, selected.Select(s => s.Id), logger, permanent: executePermanent)
             );
 
             // 清理完成后更新界面对应行的状态
@@ -209,7 +254,9 @@ public partial class CleanerPage : Page
             var successDialog = new ContentDialog
             {
                 Title = "清理完成",
-                Content = $"已安全移入回收站！共释放空间 {CleanerEngine.HumanSize(freed)}，处理 {count} 个文件/目录。\n失败: {failed.Count} 项。",
+                Content = executePermanent
+                    ? $"已极速永久释放空间 {CleanerEngine.HumanSize(freed)}！处理 {count} 个文件/目录。\n失败: {failed.Count} 项。\n系统回收站保持纯净无负担。"
+                    : $"已安全移入回收站！共释放空间 {CleanerEngine.HumanSize(freed)}，处理 {count} 个文件/目录。\n失败: {failed.Count} 项。",
                 CloseButtonText = "确定",
                 XamlRoot = this.XamlRoot
             };
@@ -224,7 +271,8 @@ public partial class CleanerPage : Page
         finally
         {
             ScanRing.IsActive = false;
-            ApplyButton.IsEnabled = true;
+            ApplyRecycleButton.IsEnabled = true;
+            ApplyPermanentButton.IsEnabled = true;
         }
     }
 }

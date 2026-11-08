@@ -21,22 +21,24 @@ public partial class DashboardPage : Page
     {
         try
         {
-            var c = new DriveInfo("C");
-            if (c.IsReady)
+            var driveC = new DriveInfo("C");
+            if (driveC.IsReady)
             {
-                var used = c.TotalSize - c.AvailableFreeSpace;
-                var pct = (double)used / c.TotalSize * 100.0;
+                long free = driveC.AvailableFreeSpace;
+                long total = driveC.TotalSize;
+                int pct = (int)((total - free) * 100 / total);
                 CProgress.Value = pct;
-                CText.Text = $"可用: {c.AvailableFreeSpace / (1024.0 * 1024 * 1024):F2} GiB / {c.TotalSize / (1024.0 * 1024 * 1024):F2} GiB (已用 {pct:F0}%)";
+                CText.Text = $"可用: {free / (1024 * 1024 * 1024.0):F2} GiB / {total / (1024 * 1024 * 1024.0):F2} GiB (已用 {pct}%)";
             }
 
-            var d = new DriveInfo("D");
-            if (d.IsReady)
+            var driveD = new DriveInfo("D");
+            if (driveD.IsReady)
             {
-                var used = d.TotalSize - d.AvailableFreeSpace;
-                var pct = (double)used / d.TotalSize * 100.0;
+                long free = driveD.AvailableFreeSpace;
+                long total = driveD.TotalSize;
+                int pct = (int)((total - free) * 100 / total);
                 DProgress.Value = pct;
-                DText.Text = $"可用: {d.AvailableFreeSpace / (1024.0 * 1024 * 1024):F2} GiB / {d.TotalSize / (1024.0 * 1024 * 1024):F2} GiB (已用 {pct:F0}%)";
+                DText.Text = $"可用: {free / (1024 * 1024 * 1024.0):F2} GiB / {total / (1024 * 1024 * 1024.0):F2} GiB (已用 {pct}%)";
             }
         }
         catch { }
@@ -49,26 +51,60 @@ public partial class DashboardPage : Page
             var report = await Task.Run(() => ProxyDoctor.Diagnose());
 
             ProxySummaryText.Text = report.Summary;
-            if (report.Details.Count > 0)
-            {
-                ProxyDetailText.Text = string.Join(" | ", report.Details);
-            }
-            else
-            {
-                ProxyDetailText.Text = "WinINET 注册表标志位一致，无未监听的本地回环死端口。";
-            }
 
+            // 1. 顶部指示灯与 Badge
             if (report.HasAnomaly)
             {
                 ProxyStatusIcon.Glyph = "\uE7BA"; // Warning icon
                 ProxyStatusIcon.Foreground = (Brush)Application.Current.Resources["SystemFillColorCautionBrush"];
-                ProxyBadgeText.Text = "检测到幽灵残留";
+                ProxyBadgeText.Text = "幽灵残留告警";
             }
             else
             {
                 ProxyStatusIcon.Glyph = "\uE73E"; // Checkmark icon
                 ProxyStatusIcon.Foreground = (Brush)Application.Current.Resources["SystemFillColorSuccessBrush"];
                 ProxyBadgeText.Text = report.ProxyEnable ? "活跃代理" : "健康直连";
+            }
+
+            // 2. 四宫格指标 (Metric Tiles)
+            // Tile 1: 工作模式
+            ProxyModeValueText.Text = report.ProxyTypeDisplay;
+            ProxyModeSubText.Text = report.ProxyEnable ? "系统级代理已开启" : (report.InconsistentFlags ? "底层残留手动标记" : "网络流量直接通信");
+
+            // Tile 2: 目标服务器与端口
+            if (!string.IsNullOrEmpty(report.ProxyServer))
+            {
+                ProxyEndpointValueText.Text = report.ProxyServer;
+                ProxyEndpointSubText.Text = report.ProxyPort.HasValue && ProxyDoctor.IsLoopbackHost(report.ProxyHost) ? "本机回环代理" : "外部代理目标";
+            }
+            else
+            {
+                ProxyEndpointValueText.Text = "直连互联网";
+                ProxyEndpointSubText.Text = "无需代理转发";
+            }
+
+            // Tile 3: 本地端口连通性
+            ProxyPortHealthValueText.Text = report.PortStatusDisplay;
+            ProxyPortHealthSubText.Text = report.PortLatencyMs.HasValue ? $"TCP 探测耗时: {report.PortLatencyMs}ms" : "无本地代理监听需求";
+
+            // Tile 4: WinINET 标志位
+            ProxyFlagsValueText.Text = report.BinaryFlagHex;
+            ProxyFlagsSubText.Text = report.BinaryFlagDescription;
+
+            // 3. 折叠面板取证细节
+            DetailProxyEnableText.Text = report.ProxyEnable ? "1 (已开启)" : "0 (已关闭)";
+            DetailProxyOverrideText.Text = string.IsNullOrEmpty(report.ProxyOverride) ? "(未设置绕过)" : report.ProxyOverride;
+            DetailPacText.Text = string.IsNullOrEmpty(report.AutoConfigUrl) ? "(未配置 PAC 脚本)" : report.AutoConfigUrl;
+            DetailEnvProxyText.Text = report.EnvStatusDisplay;
+            DetailWorkBuddyText.Text = report.WorkBuddyStatusDisplay;
+
+            if (report.Details.Count > 0)
+            {
+                ProxyDetailLogsText.Text = "• " + string.Join("\n• ", report.Details);
+            }
+            else
+            {
+                ProxyDetailLogsText.Text = "WinINET 注册表标志位一致，无死端口，环境变量纯净。";
             }
         }
         catch (Exception ex)

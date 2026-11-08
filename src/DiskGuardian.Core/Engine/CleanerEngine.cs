@@ -326,12 +326,13 @@ public sealed class CleanerEngine
     }
 
     /// <summary>
-    /// 执行规则清理（安全两步删除，默认移入回收站）
+    /// 执行规则清理（安全两步删除，支持移入回收站或极速物理清理）
     /// </summary>
     public (long FreedBytes, int DeletedFiles, List<string> Failed) ExecutePlan(
         IEnumerable<PlanRow> plan,
         IEnumerable<string> selectedRuleIds,
-        AuditLogger logger)
+        AuditLogger logger,
+        bool permanent = false)
     {
         var allowedSet = new HashSet<string>(selectedRuleIds, StringComparer.OrdinalIgnoreCase);
         long freedBytes = 0;
@@ -349,18 +350,68 @@ public sealed class CleanerEngine
                 continue;
             }
 
-            logger.Log($"正在执行规则 [{row.Name}] ({row.Id})...");
+            logger.Log($"正在执行规则 [{row.Name}] ({row.Id}) [模式: {(permanent ? "极速永久清理" : "移入回收站")}]...");
 
             if (row.Mode == "old-files" && row.KeepDays > 0)
             {
                 var stale = CollectOldFiles(row.ExistingPaths, row.KeepDays);
-                var (ok, failed) = RecycleManager.SendMany(stale, batchSize: 50, permanent: false);
+                var (ok, failed) = RecycleManager.SendMany(stale, batchSize: 50, permanent: permanent);
                 deletedFiles += ok.Count;
                 foreach (var f in failed) failedList.Add(f.Path);
                 freedBytes += row.SizeBytes;
             }
+            else if (permanent)
+            {
+                // 极速物理清理模式：跳过 Windows 回收站，直接文件系统毫秒级抹除，绝不阻塞系统回收站
+                foreach (var p in row.ExistingPaths)
+                {
+                    if (File.Exists(p))
+                    {
+                        try
+                        {
+                            File.SetAttributes(p, FileAttributes.Normal);
+                            File.Delete(p);
+                            freedBytes += row.SizeBytes;
+                            deletedFiles++;
+                            logger.Log($"  已永久删除文件: {p}");
+                        }
+                        catch (Exception ex)
+                        {
+                            failedList.Add(p);
+                            logger.Log($"  永久删除文件失败: {p} ({ex.Message})");
+                        }
+                    }
+                    else if (Directory.Exists(p))
+                    {
+                        try
+                        {
+                            int cleared = PurgeDirectoryContents(p);
+                            // 纯临时目录（如 Temp / Shader），保留或重建外层目录，确保系统正常写新缓存
+                            if (p.EndsWith(@"\Temp", StringComparison.OrdinalIgnoreCase) ||
+                                (row.Rebuild != null && row.Rebuild.Contains("自动重建")))
+                            {
+                                Directory.CreateDirectory(p);
+                            }
+                            else
+                            {
+                                try { Directory.Delete(p, true); } catch { }
+                            }
+
+                            freedBytes += row.SizeBytes;
+                            deletedFiles += (cleedCount(row.FilesCount, cleared));
+                            logger.Log($"  已极速清空目录: {p} (处理 {cleared} 个文件/子项)");
+                        }
+                        catch (Exception ex)
+                        {
+                            failedList.Add(p);
+                            logger.Log($"  清空目录失败: {p} ({ex.Message})");
+                        }
+                    }
+                }
+            }
             else
             {
+                // 安全移入回收站模式
                 foreach (var p in row.ExistingPaths)
                 {
                     var (rc, exists) = RecycleManager.SendToRecycleBin(p);
@@ -384,10 +435,43 @@ public sealed class CleanerEngine
                 rule_name = row.Name,
                 paths = row.ExistingPaths,
                 freed_bytes = row.SizeBytes,
+                mode = permanent ? "permanent" : "recycle",
                 status = "success"
             });
         }
 
         return (freedBytes, deletedFiles, failedList);
+    }
+
+    private static int cleedCount(int originalCount, int cleared) => cleared > 0 ? cleared : originalCount;
+
+    private static int PurgeDirectoryContents(string dirPath)
+    {
+        int count = 0;
+        var dir = new DirectoryInfo(dirPath);
+        if (!dir.Exists) return 0;
+
+        foreach (var file in dir.EnumerateFiles("*", SearchOption.AllDirectories))
+        {
+            try
+            {
+                file.Attributes = FileAttributes.Normal;
+                file.Delete();
+                count++;
+            }
+            catch { }
+        }
+
+        foreach (var sub in dir.EnumerateDirectories("*", SearchOption.AllDirectories).OrderByDescending(d => d.FullName.Length))
+        {
+            try
+            {
+                sub.Delete(true);
+                count++;
+            }
+            catch { }
+        }
+
+        return count;
     }
 }

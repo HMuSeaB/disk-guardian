@@ -24,32 +24,125 @@
             <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
                     CornerRadius="8" Padding="18,16">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
+                <StackPanel Spacing="16">
+                    <!-- 顶部状态栏与操作按钮 -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
 
-                    <StackPanel Grid.Column="0" Spacing="6" VerticalAlignment="Center">
-                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                            <FontIcon x:Name="ProxyStatusIcon" Glyph="&#xE774;" FontSize="18" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
-                            <TextBlock Text="网络与幽灵代理体检" FontWeight="SemiBold" FontSize="16"/>
-                            <Border x:Name="ProxyStatusBadge" Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="8,2">
-                                <TextBlock x:Name="ProxyBadgeText" Text="检测中..." FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            </Border>
+                        <StackPanel Grid.Column="0" Spacing="6" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                <FontIcon x:Name="ProxyStatusIcon" Glyph="&#xE774;" FontSize="18" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
+                                <TextBlock Text="网络与幽灵代理体检 (ProxyDoctor)" FontWeight="SemiBold" FontSize="16"/>
+                                <Border x:Name="ProxyStatusBadge" Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="8,2">
+                                    <TextBlock x:Name="ProxyBadgeText" Text="检测中..." FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                </Border>
+                            </StackPanel>
+                            <TextBlock x:Name="ProxySummaryText" Text="正在全面排查 WinINET 注册表、底层标志位与回环端口..." 
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="13"/>
                         </StackPanel>
-                        <TextBlock x:Name="ProxySummaryText" Text="正在分析注册表 Connections 二进制与回环死端口..." 
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="13"/>
-                        <TextBlock x:Name="ProxyDetailText" Text="" 
-                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}" FontSize="11" TextWrapping="Wrap"/>
-                    </StackPanel>
 
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                        <Button Content="重新体检" Click="RefreshProxy_Click"/>
-                        <Button x:Name="FixProxyButton" Content="一键安全修复" Click="FixProxy_Click" 
-                                Style="{ThemeResource AccentButtonStyle}"/>
-                    </StackPanel>
-                </Grid>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <Button Content="重新体检" Click="RefreshProxy_Click"/>
+                            <Button x:Name="FixProxyButton" Content="一键安全修复" Click="FixProxy_Click" 
+                                    Style="{ThemeResource AccentButtonStyle}"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- 4 宫格核心配置指标面板 (Metric Tiles) -->
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Tile 1: 工作模式 -->
+                        <Border Grid.Column="0" Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                                CornerRadius="6" Padding="12,10">
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="代理工作模式" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="ProxyModeValueText" Text="--" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock x:Name="ProxyModeSubText" Text="检测中" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Tile 2: 目标服务器与端口 -->
+                        <Border Grid.Column="1" Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                                CornerRadius="6" Padding="12,10">
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="服务器与端口" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="ProxyEndpointValueText" Text="--" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock x:Name="ProxyEndpointSubText" Text="检测中" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Tile 3: 本地端口连通性 -->
+                        <Border Grid.Column="2" Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                                CornerRadius="6" Padding="12,10">
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="本地端口状态" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="ProxyPortHealthValueText" Text="--" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock x:Name="ProxyPortHealthSubText" Text="探测中" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Tile 4: WinINET 二进制标志位 -->
+                        <Border Grid.Column="3" Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                                CornerRadius="6" Padding="12,10">
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="WinINET 标志位" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="ProxyFlagsValueText" Text="--" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock x:Name="ProxyFlagsSubText" Text="解析中" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- 底层技术排查与取证折叠面板 (Expander) -->
+                    <Expander Header="查看网络与环境底层取证细节" HorizontalAlignment="Stretch">
+                        <StackPanel Spacing="8" Padding="4,8">
+                            <Grid ColumnSpacing="16" RowSpacing="6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="注册表 DWORD (ProxyEnable):" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="DetailProxyEnableText" Grid.Row="0" Grid.Column="1" Text="--" FontSize="12" FontWeight="SemiBold"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="绕过列表 (ProxyOverride):" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="DetailProxyOverrideText" Grid.Row="1" Grid.Column="1" Text="--" FontSize="12"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="自动配置脚本 (PAC):" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="DetailPacText" Grid.Row="2" Grid.Column="1" Text="--" FontSize="12"/>
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="用户环境变量 (HTTP_PROXY):" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="DetailEnvProxyText" Grid.Row="3" Grid.Column="1" Text="--" FontSize="12"/>
+
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="WorkBuddy 免疫防线:" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="DetailWorkBuddyText" Grid.Row="4" Grid.Column="1" Text="--" FontSize="12"/>
+                            </Grid>
+
+                            <TextBlock Text="取证分析日志:" FontSize="12" FontWeight="SemiBold" Margin="0,4,0,0"/>
+                            <TextBlock x:Name="ProxyDetailLogsText" Text="无异常日志" 
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}" FontSize="11" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Expander>
+                </StackPanel>
             </Border>
 
             <!-- 磁盘容量卡片组 -->

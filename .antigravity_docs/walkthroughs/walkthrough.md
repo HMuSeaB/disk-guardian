@@ -1,82 +1,79 @@
-# ProxyDoctor 幽灵代理诊断与安全修复实施报告 (Walkthrough)
+# DiskGuardian 体验与发布三大痛点改造实施报告 (Walkthrough)
 
-## 1. 需求与问题背景
-当用户使用代理软件（如 FlClash、Clash Verge）并在非正常退出或卸载时，WinINET 注册表通常会出现“表面关闭、深层残留”的幽灵状态：
-- **注册表 DWORD**：`HKCU\...\Internet Settings\ProxyEnable` 显示为 `0`（关闭）。
-- **二进制脏数据**：`HKCU\...\Internet Settings\Connections` 下的 `DefaultConnectionSettings` 与 `SavedLegacySettings` 二进制数据中，第 8 字节 flags 仍残留 `0x02` 或 `0x03`，且保存着 `127.0.0.1:7890` 等端口。
-- **环境污染扩散**：Electron 框架应用（如 WorkBuddy、Cursor 等）启动时通过底层库读取二进制设置，误以为代理已开启，便主动注入 `HTTP_PROXY="http://127.0.0.1:7890"` 到主进程和子进程环境变量中。
-- **最终后果**：由于本地没有监听该端口的代理服务，终端工具链（git、curl、npm、Claude Code）所有网络请求均被强行丢向死端口，报 `actively refused (10061)` 瘫痪。
+## 1. 用户反馈痛点与解决矩阵
 
-## 2. 解决方案与核心架构
+| 体验痛点 | 根本原因 | 改造落地方案 |
+|---|---|---|
+| **痛点 1: 代理体检细节不够直观** | 仅显示一两行摘要，无法看清代理模式、端口连通性延迟、PAC、注册表 Flags 与环境变量 | 1. `ProxyDoctor` 扩展工作模式、延迟探测、二进制标志位解析、绕过列表等维度；<br>2. `DashboardPage` 新增 4 宫格 Fluent 指标卡片（模式、服务器、端口健康度、Flags）与折叠取证抽屉；<br>3. CLI `--check-proxy` 格式化层次输出。 |
+| **痛点 2: 发布包 177 个文件散乱难找** | WinUI 3 unpackaged 模式平铺所有 WindowsAppSDK 与 .NET 库；无自动 Release 流水线 | 1. 增加纯 C# 轻量启动器 `DiskGuardian.Launcher` 生成根目录 `DiskGuardian.exe`；<br>2. 打包结构将 170+ 依赖收纳于 `app/` 目录，去除 `.pdb`；解压后仅保留启动器与规则；<br>3. GitHub Actions 增加 Tag 自动发布 GitHub Release 工作流。 |
+| **痛点 3: 移入回收站卡死、塞入几千个文件** | 对 Temp/DXCache 纯临时碎片强行移入回收站，产生几千个 `$I/$R` 导致 Windows 资源管理器假死 | 1. `CleanerEngine` 引入 `permanent` 极速物理清理；<br>2. `CleanerPage` 提供双模式按钮（【移入回收站】与【直接永久清理】）；<br>3. 碎片 >500 项时智能弹窗推荐极速模式；<br>4. `RecycleManager` 调优毫秒级批量物理清空。 |
 
-遵循 C.T.I.V. 流程与 Windows 桌面环境安全规范（严禁杀死 `explorer.exe`），在 `DiskGuardian` 中实现了纯原生 C# 的诊断与修复引擎：
+---
+
+## 2. 核心架构与详细落地
 
 ```mermaid
 graph TD
-    A[启动诊断 Diagnose] --> B[检查注册表 ProxyEnable / ProxyServer]
-    A --> C[解析 Connections 二进制 Byte 8 标记]
-    A --> D[250ms TCP 探测本地回环端口健康度]
-    A --> E[排查 User 级环境变量 HTTP_PROXY]
-    A --> F[检查 WorkBuddy settings.json 免疫配置]
-    
-    B & C & D & E & F --> G{是否存在幽灵代理或隐患?}
-    G -- 无 --> H[系统网络配置健康]
-    G -- 有 --> I[一键安全修复 Repair]
-    
-    I --> J[安全导出 .reg 注册表备份]
-    I --> K[清洗 Connections 二进制字节为 0x01 直连]
-    I --> L[清除 User 环境变量污染]
-    I --> M[WorkBuddy 注入 mode: none 免疫加固]
-    I --> N[WinINet API 广播刷新生效 - 免重启无感]
+    subgraph 代理详情可视化
+        A[ProxyDoctor 全量诊断] --> B[4 宫格核心配置指示板]
+        A --> C[底层的技术排查与取证 Expander]
+        B --> D[模式 / 服务器端口 / 端口延迟 / 二进制Flags]
+    end
+
+    subgraph 双清理模式与回收站防卡死
+        E[规则扫描完成] --> F{文件数量 > 500?}
+        F -- 临时小碎片多 --> G[智能推荐: 直接永久清理]
+        F -- 正常项目依赖 --> H[支持移入回收站 可撤销]
+        G --> I[极速物理清空 毫秒级 零回收站负担]
+        H --> J[安全两步删除 Shell FOF_ALLOWUNDO]
+        K[回收站管理] --> L[极速物理清空 4,000+ 对象瞬间释放]
+    end
+
+    subgraph 极简发布架构
+        M[打包产物] --> N[根目录仅 4 个项目: DiskGuardian.exe + rules.json + 使用说明 + app/]
+        N --> O[双击 DiskGuardian.exe 秒级拉起 app/DiskGuardian.UI.exe]
+        P[git tag v*] --> Q[GitHub Actions 自动构建与创建 GitHub Release]
+    end
 ```
 
-### 核心亮点
-1. **纯 C# 原生实现，零第三方依赖**：
-   - 核心文件位于 [`DiskGuardian.Core/Diagnostics/ProxyDoctor.cs`](file:///d:/4rchive/Code/disk-guardian/src/DiskGuardian.Core/Diagnostics/ProxyDoctor.cs)。
-2. **符合桌面安全准则（`windows_desktop_safety.md`）**：
-   - 使用 WinINet 原生 API `InternetSetOptionW`（常量 `39=INTERNET_OPTION_SETTINGS_CHANGED`, `37=INTERNET_OPTION_REFRESH`）向系统广播代理配置更新。
-   - **绝对不杀 `explorer.exe`**，不破坏任何基于 WinUI 3 / WPF 的桌面微件与 Shell 窗口。
-3. **安全第一：预修备份**：
-   - 在动注册表前自动调用 Windows 原生 `reg export` 导出备份至 `out/proxy_backup_<timestamp>.reg`。
-4. **彻底治本与防御加固**：
-   - 修复二进制配置中的 flags（清除 `0x02` 位，强制置 `0x01` 直连模式），同时将序列号递增防缓存。
-   - 自动在 `~/.workbuddy/settings.json` 中配置 `"mode": "none"`，彻底切断 Electron 误读系统代理的通道。
+### 2.1 代理详情可视化与排查增强
+- **核心文件**：[`DiskGuardian.Core/Diagnostics/ProxyDoctor.cs`](file:///d:/4rchive/Code/disk-guardian/src/DiskGuardian.Core/Diagnostics/ProxyDoctor.cs)
+  - 增加 `TestPort(host, port)` 测算本地回环握手响应延迟（如 19ms）。
+  - 解析 `DefaultConnectionSettings` 第 8 字节（如 `0x03 (直连+手动代理)`、`0x01 (直连)`）。
+  - 读取 `ProxyOverride` 绕过名单与 `AutoConfigURL` PAC 脚本地址。
+  - 用户环境变量污染排查与 WorkBuddy 防线状态。
+- **WinUI 3 仪表盘**：[`DashboardPage.xaml`](file:///d:/4rchive/Code/disk-guardian/src/DiskGuardian.UI/Views/DashboardPage.xaml)
+  - 顶部指标：当前工作模式、服务器与端口、本地端口状态、WinINET 标志位。
+  - 折叠面板：可展开查看全量底层取证数据与日志。
+
+### 2.2 极简发布架构与 GitHub Release 自动化
+- **启动器设计**：[`DiskGuardian.Launcher`](file:///d:/4rchive/Code/disk-guardian/src/DiskGuardian.Launcher/Program.cs)
+  - 纯原生 WinExe，只有 150 KB，无黑框。
+  - 运行时启动 `app/DiskGuardian.UI.exe` 并保持目录上下文。
+- **CI / 本地脚本**：[`.github/workflows/build.yml`](file:///d:/4rchive/Code/disk-guardian/.github/workflows/build.yml) 与 [`build_release.ps1`](file:///d:/4rchive/Code/disk-guardian/build_release.ps1)
+  - 根目录解压后不再面对 177 个文件，只有极其清爽的 `DiskGuardian.exe`、`rules.json`、`使用说明.txt` 和 `app/` 依赖目录。
+  - 支持 `git tag v1.0.0; git push origin v1.0.0` 自动生成 Release 附件。
+
+### 2.3 极速物理清理与回收站卡顿治理
+- **引擎支持**：[`CleanerEngine.cs`](file:///d:/4rchive/Code/disk-guardian/src/DiskGuardian.Core/Engine/CleanerEngine.cs)
+  - `ExecutePlan(..., bool permanent = false)`
+  - 永久清理模式下直接物理抹除，Temp 临时目录在清空后安全重建空目录；速度相比 Shell 回收站提升上百倍。
+- **界面交互**：[`CleanerPage.xaml`](file:///d:/4rchive/Code/disk-guardian/src/DiskGuardian.UI/Views/CleanerPage.xaml) / [`.cs`](file:///d:/4rchive/Code/disk-guardian/src/DiskGuardian.UI/Views/CleanerPage.xaml.cs)
+  - 底部提供双按钮：【移入回收站 (可撤销)】与【直接永久清理 (极速模式)】。
+  - 当扫描出的文件碎片数 > 500 个时，弹窗自动建议选择极速模式，避免卡死系统回收站。
+- **回收站清空调优**：[`RecycleManager.cs`](file:///d:/4rchive/Code/disk-guardian/src/DiskGuardian.Core/Safety/RecycleManager.cs)
+  - `EmptySafely` 优化为先快速物理删除 `$I/$R`，几千个残留文件毫秒级清空。
 
 ---
 
-## 3. CLI 与 WinUI 3 落地
+## 3. 验证与测试结果
 
-### 3.1 CLI 命令行工具
-通过 `DiskGuardian.Cli` 提供极简运维指令：
-- **诊断**：`DiskGuardian.Cli.exe --check-proxy`
-  - 自动输出代理状态报告与隐患告警。
-  - 存在异常时以 exit code 1 返回，健康时返回 0，可无缝接入 CI 或定时脚本。
-- **修复**：`DiskGuardian.Cli.exe --fix-proxy`
-  - 自动完成备份、注册表修复、广播刷新与 WorkBuddy 配置加固。
-
-### 3.2 WinUI 3 原生 Fluent 桌面界面
-在 [`DashboardPage.xaml`](file:///d:/4rchive/Code/disk-guardian/src/DiskGuardian.UI/Views/DashboardPage.xaml) 新增“网络与幽灵代理体检”卡片：
-- **实时状态感知**：页面加载时异步体检，用 Fluent 图标（ShieldCheckmark 绿色 / DismissCircle 红色 / Warning 橙色）指示状态。
-- **一键安全修复**：点击【一键安全修复】弹出 Fluent 对话框，二次确认后异步执行，实时输出修复步骤日志与备份路径。
-
----
-
-## 4. 验证结果
-
-1. **项目整体编译**：
-   ```powershell
-   dotnet build src/DiskGuardian.UI/DiskGuardian.UI.csproj -c Release -p:Platform=x64 -r win-x64
-   ```
-   输出：**0 警告，0 错误**。
-
-2. **引擎 21 项安全自测**：
-   ```powershell
-   dotnet run --project src/DiskGuardian.Cli/DiskGuardian.Cli.csproj -- --check-rules
-   ```
-   输出：**ALL 21 SELF-TEST ASSERTIONS PASSED!**（原有规则与安全机制无任何破坏）。
-
-3. **CLI 实机诊断测试**：
-   ```powershell
-   dotnet run --project src/DiskGuardian.Cli/DiskGuardian.Cli.csproj -- --check-proxy
-   ```
-   输出：成功探测并精准识别系统当前的代理状态与 WorkBuddy 的潜在风险项。
+1. **21 项核心安全自测**：
+   - 命令行：`dotnet run --project src/DiskGuardian.Cli/DiskGuardian.Cli.csproj -- --check-rules`
+   - 结果：**ALL 21 SELF-TEST ASSERTIONS PASSED!**（硬禁区绝对不破）。
+2. **完整构建与本地打包验证**：
+   - 运行：`build_release.ps1`
+   - 结果：编译 0 警告、0 错误，打包生成 `dist/disk-guardian-winui3-win-x64.zip`，解压根目录清爽规范。
+3. **代理排查验证**：
+   - 运行：`dotnet run --project src/DiskGuardian.Cli/DiskGuardian.Cli.csproj -- --check-proxy`
+   - 结果：精准识别 `127.0.0.1:7890` 握手响应延迟 19ms、标志位 `0x03` 与 WorkBuddy 防线状态。

@@ -22,6 +22,7 @@ secrets.json
 bin/
 obj/
 artifacts/
+dist/
 publish/
 .vs/
 *.user

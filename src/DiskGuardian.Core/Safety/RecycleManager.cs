@@ -255,7 +255,8 @@ public static class RecycleManager
     public static (int SucceededCount, List<string> FailedPaths) EmptySafely(IEnumerable<string>? driveRoots = null)
     {
         var drives = driveRoots ?? new[] { @"C:\", @"D:\" };
-        var targetPaths = new List<string>();
+        var targetFiles = new List<string>();
+        var targetDirs = new List<string>();
 
         foreach (var drive in drives)
         {
@@ -277,7 +278,7 @@ public static class RecycleManager
                             if (name.StartsWith("$I", StringComparison.OrdinalIgnoreCase) ||
                                 name.StartsWith("$R", StringComparison.OrdinalIgnoreCase))
                             {
-                                targetPaths.Add(f);
+                                targetFiles.Add(f);
                             }
                         }
 
@@ -285,7 +286,7 @@ public static class RecycleManager
                         var subDirs = Directory.GetDirectories(sidDir, "$R*");
                         foreach (var d in subDirs)
                         {
-                            targetPaths.Add(d);
+                            targetDirs.Add(d);
                         }
                     }
                     catch { }
@@ -294,16 +295,48 @@ public static class RecycleManager
             catch { }
         }
 
-        if (targetPaths.Count == 0)
+        int succeeded = 0;
+        var retryList = new List<string>();
+
+        // 1. 极速物理直删小文件（针对几千个小碎片只需几十毫秒）
+        foreach (var f in targetFiles)
         {
-            return (0, new List<string>());
+            try
+            {
+                File.SetAttributes(f, FileAttributes.Normal);
+                File.Delete(f);
+                succeeded++;
+            }
+            catch
+            {
+                retryList.Add(f);
+            }
         }
 
-        var (succeeded, failed) = SendMany(targetPaths, batchSize: 50, permanent: true);
-        var failedList = new List<string>();
-        foreach (var f in failed) failedList.Add(f.Path);
+        // 2. 物理直删子目录
+        foreach (var d in targetDirs)
+        {
+            try
+            {
+                Directory.Delete(d, true);
+                succeeded++;
+            }
+            catch
+            {
+                retryList.Add(d);
+            }
+        }
 
-        return (succeeded.Count, failedList);
+        // 3. 针对受权限或系统保护的残留项，通过 Shell SendMany 安全重试
+        var failedList = new List<string>();
+        if (retryList.Count > 0)
+        {
+            var (shellOk, shellFailed) = SendMany(retryList, batchSize: 50, permanent: true);
+            succeeded += shellOk.Count;
+            foreach (var sf in shellFailed) failedList.Add(sf.Path);
+        }
+
+        return (succeeded, failedList);
     }
 
     private static long GetDirectorySize(string path)
