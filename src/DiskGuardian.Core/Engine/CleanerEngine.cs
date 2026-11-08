@@ -121,6 +121,7 @@ public sealed class CleanerEngine
         long totalBytes = 0;
         int totalFiles = 0;
         int totalErrors = 0;
+        var subItems = new List<SubPathItem>();
 
         if (reasons.Count == 0 && existing.Count > 0)
         {
@@ -132,6 +133,18 @@ public sealed class CleanerEngine
                 {
                     try { totalBytes += new FileInfo(f).Length; } catch { totalErrors++; }
                 }
+
+                foreach (var p in existing)
+                {
+                    subItems.Add(new SubPathItem
+                    {
+                        Path = p,
+                        Name = FormatSubItemName(p),
+                        SizeBytes = totalBytes / Math.Max(1, existing.Count),
+                        FilesCount = totalFiles / Math.Max(1, existing.Count),
+                        IsSelected = true
+                    });
+                }
             }
             else
             {
@@ -141,9 +154,21 @@ public sealed class CleanerEngine
                     totalBytes += b;
                     totalFiles += f;
                     totalErrors += err;
+
+                    subItems.Add(new SubPathItem
+                    {
+                        Path = p,
+                        Name = FormatSubItemName(p),
+                        SizeBytes = b,
+                        FilesCount = f,
+                        IsSelected = true
+                    });
                 }
             }
         }
+
+        // 按体积从大到小降序排列，让占用最高的项目排在最前面
+        subItems.Sort((a, b) => b.SizeBytes.CompareTo(a.SizeBytes));
 
         string status;
         if (reasons.Count > 0) status = "blocked";
@@ -168,7 +193,8 @@ public sealed class CleanerEngine
             Note = rule.Note,
             Mode = rule.Mode,
             KeepDays = rule.KeepDays,
-            IsSelected = status == "ready"
+            IsSelected = status == "ready",
+            SubItems = subItems
         };
     }
 
@@ -352,18 +378,52 @@ public sealed class CleanerEngine
 
             logger.Log($"正在执行规则 [{row.Name}] ({row.Id}) [模式: {(permanent ? "极速永久清理" : "移入回收站")}]...");
 
+            // 筛选实际勾选且存在的路径目标
+            var targets = new List<(string Path, long Size, int Files)>();
+            if (row.SubItems != null && row.SubItems.Count > 0)
+            {
+                foreach (var sub in row.SubItems)
+                {
+                    if (sub.IsSelected && (Directory.Exists(sub.Path) || File.Exists(sub.Path)))
+                    {
+                        targets.Add((sub.Path, sub.SizeBytes, sub.FilesCount));
+                    }
+                }
+            }
+            else
+            {
+                foreach (var p in row.ExistingPaths)
+                {
+                    targets.Add((p, row.SizeBytes / Math.Max(1, row.ExistingPaths.Count), row.FilesCount / Math.Max(1, row.ExistingPaths.Count)));
+                }
+            }
+
+            if (targets.Count == 0)
+            {
+                logger.Log($"  规则 [{row.Name}] 未勾选任何子项，安全跳过。");
+                continue;
+            }
+
+            long rowFreed = 0;
+            int rowDeleted = 0;
+            var executedPaths = new List<string>();
+
             if (row.Mode == "old-files" && row.KeepDays > 0)
             {
-                var stale = CollectOldFiles(row.ExistingPaths, row.KeepDays);
+                var targetPaths = targets.Select(t => t.Path).ToList();
+                var stale = CollectOldFiles(targetPaths, row.KeepDays);
                 var (ok, failed) = RecycleManager.SendMany(stale, batchSize: 50, permanent: permanent);
                 deletedFiles += ok.Count;
+                rowDeleted += ok.Count;
                 foreach (var f in failed) failedList.Add(f.Path);
                 freedBytes += row.SizeBytes;
+                rowFreed += row.SizeBytes;
+                executedPaths.AddRange(targetPaths);
             }
             else if (permanent)
             {
                 // 极速物理清理模式：跳过 Windows 回收站，直接文件系统毫秒级抹除，绝不阻塞系统回收站
-                foreach (var p in row.ExistingPaths)
+                foreach (var (p, sSize, sFiles) in targets)
                 {
                     if (File.Exists(p))
                     {
@@ -371,8 +431,11 @@ public sealed class CleanerEngine
                         {
                             File.SetAttributes(p, FileAttributes.Normal);
                             File.Delete(p);
-                            freedBytes += row.SizeBytes;
+                            freedBytes += sSize;
+                            rowFreed += sSize;
                             deletedFiles++;
+                            rowDeleted++;
+                            executedPaths.Add(p);
                             logger.Log($"  已永久删除文件: {p}");
                         }
                         catch (Exception ex)
@@ -397,8 +460,12 @@ public sealed class CleanerEngine
                                 try { Directory.Delete(p, true); } catch { }
                             }
 
-                            freedBytes += row.SizeBytes;
-                            deletedFiles += (cleedCount(row.FilesCount, cleared));
+                            freedBytes += sSize;
+                            rowFreed += sSize;
+                            int finalCleared = cleedCount(sFiles, cleared);
+                            deletedFiles += finalCleared;
+                            rowDeleted += finalCleared;
+                            executedPaths.Add(p);
                             logger.Log($"  已极速清空目录: {p} (处理 {cleared} 个文件/子项)");
                         }
                         catch (Exception ex)
@@ -412,13 +479,16 @@ public sealed class CleanerEngine
             else
             {
                 // 安全移入回收站模式
-                foreach (var p in row.ExistingPaths)
+                foreach (var (p, sSize, sFiles) in targets)
                 {
                     var (rc, exists) = RecycleManager.SendToRecycleBin(p);
                     if (rc == 0 && !exists)
                     {
-                        freedBytes += row.SizeBytes;
-                        deletedFiles += row.FilesCount;
+                        freedBytes += sSize;
+                        rowFreed += sSize;
+                        deletedFiles += sFiles;
+                        rowDeleted += sFiles;
+                        executedPaths.Add(p);
                         logger.Log($"  已移入回收站: {p}");
                     }
                     else
@@ -433,8 +503,8 @@ public sealed class CleanerEngine
             {
                 rule_id = row.Id,
                 rule_name = row.Name,
-                paths = row.ExistingPaths,
-                freed_bytes = row.SizeBytes,
+                paths = executedPaths,
+                freed_bytes = rowFreed,
                 mode = permanent ? "permanent" : "recycle",
                 status = "success"
             });
@@ -473,5 +543,28 @@ public sealed class CleanerEngine
         }
 
         return count;
+    }
+
+    public static string FormatSubItemName(string fullPath)
+    {
+        try
+        {
+            var trimmed = fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var parent = Path.GetDirectoryName(trimmed);
+            var currentName = Path.GetFileName(trimmed);
+            if (!string.IsNullOrEmpty(parent))
+            {
+                var parentName = Path.GetFileName(parent);
+                if (!string.IsNullOrEmpty(parentName))
+                {
+                    return $"{parentName} ({currentName})";
+                }
+            }
+            return currentName;
+        }
+        catch
+        {
+            return fullPath;
+        }
     }
 }

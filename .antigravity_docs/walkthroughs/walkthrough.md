@@ -1,13 +1,11 @@
-# DiskGuardian 架构优化与发布体验演化报告 (Walkthrough)
+# DiskGuardian 多项目子选项细化与精准勾选落地报告 (Walkthrough)
 
 ## 1. 用户反馈与痛点治理矩阵
 
 | 反馈痛点 | 根本原因分析 | 演进落地方案 |
 |---|---|---|
-| **WorkBuddy 检查突兀与普适性问题**<br>*“万一别人不需要呢，这不是典型案例咋办”* | WorkBuddy 属于特定场景，若在仪表盘显要位置固定硬编码报错，会对普通用户造成误导与认知噪音。 | 1. 泛化为“下游工具链与应用安全隔离”；<br>2. 增加高频通用开发者痛点：**Git 全局代理 (`~/.gitconfig` 中的 `http.proxy`) 死锁检测**；<br>3. 采用**按需条件呈现**：未安装对应应用时判定为纯净，日志中绝不提 WorkBuddy。 |
-| **启动体验与规范度质疑**<br>*“必须要有 bat 嘛，不能做一个规范的快捷方式吗”* | 发布包中附带 `.bat` 会带来脚本半成品感；便携包解压后用户缺少规范入口。 | 1. 彻底从打包脚本和发布包中**移除 `启动DiskGuardian.bat`**；<br>2. 采用 Win32 原生 C 启动器（18KB 零依赖 `DiskGuardian.exe`）双击秒开；<br>3. 实现 `ShortcutManager`，在主界面提供【创建桌面快捷方式】标准能力，调用 Windows 原生 COM 接口生成规范 `.lnk`。 |
-| **代理体检细节可视化** | 早期仅有简短文字，缺乏连通性延迟与底层标志位细节。 | 引入 4 宫格指标卡片（模式、端点、端口连通性延迟、WinINET 标志位）与折叠取证抽屉。 |
-| **清理大量碎片卡死回收站** | Temp 目录几千个缓存文件移入回收站造成资源管理器卡死。 | 引入【直接永久清理】极速通道，碎片 >500 项时自动弹窗引导。 |
+| **Rust / Node 无法按项目选择性清理**<br>*“应该分几个子选项，然后删除某个项目的rust，去勾选”* | 原先将动态发现（如 8 处 Rust target、80 处 node_modules）当做单一黑盒整体，用户要么全删要么全留，极易误删当前正开发项目的编译产物。 | 1. `CleanerEngine` 引入 `SubPathItem` 记录每个子项目的独立体积与文件数，按体积降序排列；<br>2. `CleanerPage` 增加多项目子列表折叠展开面板；<br>3. 每个项目配备独立 CheckBox，取消勾选即可保留对应项目；<br>4. 执行清理时只删勾选项，保留项绝对不碰。 |
+| **标题与容量文本严重重叠撞车**<br>（截图视觉 BUG） | `rules.json` 中的 `size_hint` 包含超长注释，被直接写入了右侧 `SizeDisplay`，导致与左侧标题发生挤压重叠。 | 1. `size_hint` 简化为简短预估（如 `~30.28 GiB (8 处项目)`）；<br>2. 扫描前 `SizeDisplay` 固定为简洁的“待扫描”，彻底消除碰撞；<br>3. Grid 采用弹性伸缩与 `TextTrimming` 截断保护。 |
 
 ---
 
@@ -15,55 +13,58 @@
 
 ```mermaid
 graph TD
-    subgraph 下游环境与工具链安全防线
-        A[ProxyDoctor 诊断] --> B[环境变量 HTTP_PROXY 扫描]
-        A --> C[Git 全局代理配置 ~/.gitconfig 扫描]
-        A --> D{已安装下游易感应用?}
-        D -- 是 --> E[提示建议加固 mode: none]
-        D -- 否 --> F[显示 纯净/未安装易感应用]
-        C --> G{配置了本地回环死端口?}
-        G -- 是 --> H[标红告警: Git 代理死锁 10061 阻断]
-        G -- 否 --> I[直连或活跃代理]
+    subgraph 扫描与解析层
+        A[扫描规则: 如 rust-target] --> B[动态探测多处物理路径]
+        B --> C[逐项扫描树体积并按大小降序排序]
+        C --> D[生成 SubPathItem 列表: tern/target 20.5G, zerogravity 5.79G...]
     end
 
-    subgraph 规范启动与快捷方式体系
-        J[解压发布包] --> K[根目录仅有 DiskGuardian.exe 无任何 bat]
-        K --> L[原生 C 启动器秒级拉起 app/DiskGuardian.UI.exe]
-        L --> M[主界面右上角: 一键【创建桌面快捷方式】]
-        M --> N[调用 Win32 WScript.Shell 动态生成 DiskGuardian.lnk]
-        N --> O[包含规范图标 工作目录 与说明]
+    subgraph 前端交互与精确控制
+        D --> E[CleanerRuleRow 主卡片展示汇总容量]
+        E --> F[点击展开各项目明细 8 处]
+        F --> G[展示每个项目的独立 CheckBox 与路径]
+        G --> H{用户取消勾选开发中的项目}
+        H --> I[动态扣减已选容量 底部实时联动]
+        G --> J[支持点击【定位】按钮 在资源管理器中核对]
+    end
+
+    subgraph 精准执行与保留
+        I --> K[执行清理 移入回收站/永久清理]
+        K --> L[仅清理勾选的项目物理路径]
+        K --> M[未勾选项目 target/依赖 100% 完好无损]
     end
 ```
 
-### 2.1 下游工具链防线泛化
-- **Git 全局代理排查**（[`ProxyDoctor.cs`](file:///d:/4rchive/Code/disk-guardian/src/DiskGuardian.Core/Diagnostics/ProxyDoctor.cs)）：
-  - 自动定位解析 `~/.gitconfig` 中的 `[http] proxy` 项；
-  - 若指向本地回环端口（如 `127.0.0.1:7890`）且端口未在监听，立即提示 `🔴 残留死代理`，防止用户在终端踩 `git clone 10061` 拒绝连接；
-- **按需应用加固**：
-  - 仅当物理磁盘存在 `~/.workbuddy/settings.json` 时才展示加固建议；未安装时直接显示 `纯净 (未安装易感应用)`，不在界面和日志中引入任何多余名词。
+### 2.1 数据与引擎改造
+- **数据结构升级**（[`RuleModel.cs`](file:///d:/4rchive/Code/disk-guardian/src/DiskGuardian.Core/Engine/RuleModel.cs)）：
+  - 定义 `SubPathItem`（含 `Path`, `Name`, `SizeBytes`, `FilesCount`, `IsSelected`），挂载至 `PlanRow.SubItems`。
+- **逐项统计与排序**（[`CleanerEngine.cs`](file:///d:/4rchive/Code/disk-guardian/src/DiskGuardian.Core/Engine/CleanerEngine.cs)）：
+  - 扫描时逐一计算每个子项目的大小，提取 `父目录名 (子项名)` 作为直观展示名；
+  - 自动按体积从大到小降序排列（如 20.5GB 的老项目排在第一位，方便优先决策）。
+- **执行过滤支持**：
+  - `ExecutePlan` 中对 `row.SubItems` 执行过滤，仅清理 `sub.IsSelected == true` 的物理路径；
+  - 清理后若用户保留了部分子项目，自动重新轻量刷新该规则并显示剩余保留体积，不遮掩状态。
 
-### 2.2 规范快捷方式体系与去 `.bat`
-- **COM 快捷方式管理器**（[`ShortcutManager.cs`](file:///d:/4rchive/Code/disk-guardian/src/DiskGuardian.Core/Safety/ShortcutManager.cs)）：
-  - 通过 Windows 原生 COM 组件 `WScript.Shell` 动态解析用户当前真实桌面（支持重定向/OneDrive 桌面）；
-  - 智能解析根目录 `DiskGuardian.exe`，绑定工作目录与图标编号；
-  - 提供 CLI 参数 `--create-shortcut` 与 WinUI 3 顶部按钮一键交互。
-- **打包流水线重塑**（[`build_release.ps1`](file:///d:/4rchive/Code/disk-guardian/build_release.ps1)）：
-  - 彻底抹除任何 `.bat` 批处理生成代码；
-  - 规范《使用说明.txt》，引导用户双击 `DiskGuardian.exe` 或使用应用内一键生成快捷方式。
+### 2.2 前端 ViewModel 与 XAML 联动
+- **ViewModel**（[`CleanerRuleRow.cs`](file:///d:/4rchive/Code/disk-guardian/src/DiskGuardian.UI/ViewModels/CleanerRuleRow.cs)）：
+  - 修复 `_sizeDisplay` 初始值，防止文字重叠；
+  - 新增 `CleanerSubItemRow` 支持双向绑定与事件通知；
+  - 当子项勾选状态改变时，实时联动父级体积和页面底部总释放大小。
+- **XAML 页面**（[`CleanerPage.xaml`](file:///d:/4rchive/Code/disk-guardian/src/DiskGuardian.UI/Views/CleanerPage.xaml) / [`.cs`](file:///d:/4rchive/Code/disk-guardian/src/DiskGuardian.UI/Views/CleanerPage.xaml.cs)）：
+  - 主卡片内嵌入多项目折叠展开入口；
+  - 展开后展示清晰的子项列表，带项目名、路径、大小与【定位】快捷操作；
+  - 点击【定位】调用系统 `explorer.exe` 原生弹出项目所在文件夹。
 
 ---
 
-## 3. 验证与测试结果
+## 3. 验证与自测结果
 
-1. **21 项核心安全断言**：
+1. **核心安全硬禁区断言自测**：
    - 运行：`dotnet run --project src/DiskGuardian.Cli/DiskGuardian.Cli.csproj -- --check-rules`
-   - 状态：**ALL 21 SELF-TEST ASSERTIONS PASSED!**（系统文件、winevt 事件日志、dmp 转储文件代码级硬锁定）。
-2. **代理与下游工具链诊断自测**：
-   - 运行：`dotnet run --project src/DiskGuardian.Cli/DiskGuardian.Cli.csproj -- --check-proxy`
-   - 状态：成功展示工作模式、服务器端点、端口响应延迟、Git 全局代理状态与下游应用加固状态。
-3. **桌面快捷方式创建验证**：
-   - 运行：`dotnet run --project src/DiskGuardian.Cli/DiskGuardian.Cli.csproj -- --create-shortcut`
-   - 状态：**[成功] 已在桌面创建快捷方式: C:\Users\36230\Desktop\DiskGuardian.lnk**。
-4. **全解决方案编译**：
+   - 状态：**ALL 21 SELF-TEST ASSERTIONS PASSED!**（100% 代码化锁定）。
+2. **多项目规则解析验证**：
+   - `rules.json` 中的 `rust-target` 与 `js-node-modules` 正确识别多项目；
+   - 扫描前界面文字重叠彻底消除，布局对齐工整。
+3. **全工程构建验证**：
    - 运行：`dotnet build src/DiskGuardian.sln -p:Platform=x64`
    - 状态：**已成功生成。0 个警告，0 个错误。**

@@ -1,23 +1,17 @@
-# 任务看板 (Task Board) - 体验与发布痛点治理
+# 任务看板 (Task Board) - 规则多项目子选项细化与精准勾选
 
-- [x] 任务 1: 代理体检详情可视化与丰富表达 <!-- id: 1 -->
-  - [x] 扩展 `ProxyDoctor.cs`，丰富代理类型、服务器端口、延迟、标志位解析与配置细节
-  - [x] 重构 `DashboardPage.xaml`，增加 4 宫格指标卡片与【技术排查与底层取证详情】Expander
-  - [x] 更新 CLI `--check-proxy` 格式化排查输出
-- [x] 任务 2: 解决“移入回收站太卡 / 回收站被塞入几千个文件” <!-- id: 2 -->
-  - [x] `CleanerEngine.cs` 增加永久直清能力 (`permanent: true`)
-  - [x] `CleanerPage.xaml` 增加【直接永久清理 (极速模式)】操作按钮
-  - [x] 大量小碎片文件（>500 项）弹窗智能推荐分流，避免 Windows 回收站卡死
-  - [x] 调优 `RecyclePage.xaml` 帮助用户一键快速清空当前被塞满的回收站
-- [x] 任务 3: 发布包极简收纳与 Release 自动化发布 <!-- id: 3 -->
-  - [x] 原生 Win32 C 启动器 `launcher.c` 编译生成 18KB 零依赖 `DiskGuardian.exe`
-  - [x] 规范发布目录树：全部 170+ 依赖收纳进 `app/` 目录，根目录仅留启动器与配置
-- [x] 任务 4: 下游应用与工具链防线泛化 (去个性化硬编码) <!-- id: 4 -->
-  - [x] 将 WorkBuddy 专用检测泛化为通用“下游工具链与应用安全隔离”
-  - [x] 增加广大开发者高频踩坑项：Git 全局代理 (`~/.gitconfig` 中的 `http.proxy`) 残留死代理排查
-  - [x] 仅在真实检测到已安装对应应用时进行提示加固；未安装时显示纯净，不进行误导告警
-- [x] 任务 5: 规范快捷方式体系，彻底废弃 `.bat` <!-- id: 5 -->
-  - [x] 彻底从 `build_release.ps1` 和发布包中移除 `启动DiskGuardian.bat`
-  - [x] 实现 `ShortcutManager.cs`：利用 Win32 原生 COM 接口生成规范 `DiskGuardian.lnk`
-  - [x] 在 UI 主界面增加【创建桌面快捷方式】一键按钮，智能解析工作目录与图标
-- [x] 任务 6: 21 项安全硬禁区断言自测与完整编译验证 <!-- id: 6 -->
+- [x] 任务 1: `CleanerEngine.cs` 支持子项目明细扫描与精准过滤清理 <!-- id: 1 -->
+  - [x] 定义 `SubPathItem` 记录类并挂载至 `PlanRow`
+  - [x] `ScanRule` 逐项统计每个子项目的体积与文件数，按体积降序排列
+  - [x] `ExecutePlan` 支持仅清理子项中勾选的目标路径，保留未勾选项
+- [x] 任务 2: ViewModel 升级与布局文字重叠修复 <!-- id: 2 -->
+  - [x] 修复 `CleanerRuleRow` 初始状态将长注释放进 `SizeDisplay` 导致的文字重叠
+  - [x] 创建 `CleanerSubItemRow` 支持子项目独立勾选与父级联动汇总
+  - [x] 增加 `IsExpanded`, `HasSubItems`, `SubItemsSummary` 等交互属性
+- [x] 任务 3: `CleanerPage.xaml` / `.cs` 前端多项目展开与勾选交互 <!-- id: 3 -->
+  - [x] 修复 Grid 列宽与 TextBlock 弹性截断，杜绝布局碰撞
+  - [x] 增加子项目展开/收起面板与嵌套子列表
+  - [x] 支持点击子项目【定位】按钮原生打开 Windows 资源管理器查看项目
+  - [x] 底部可释放空间与勾选联动实时计算
+- [x] 任务 4: 21 项安全硬禁区自测与完整编译验证 <!-- id: 4 -->
+- [x] 任务 5: 验证报告生成与提交推送 <!-- id: 5 -->

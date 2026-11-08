@@ -239,15 +239,41 @@ public partial class CleanerPage : Page
             // 清理完成后更新界面对应行的状态
             foreach (var row in selected)
             {
-                row.ApplyResult(new PlanRow
+                if (row.SubItemRows.Count > 0)
                 {
-                    Id = row.Id,
-                    Name = row.Name,
-                    Level = row.Level,
-                    SizeBytes = 0,
-                    SizeHuman = "0 B",
-                    Status = "clean"
-                });
+                    // 如果全部被勾选且目录已全被清空
+                    bool allCleared = row.SubItemRows.All(s => s.IsSelected && !Directory.Exists(s.Path));
+                    if (allCleared)
+                    {
+                        row.ApplyResult(new PlanRow
+                        {
+                            Id = row.Id,
+                            Name = row.Name,
+                            Level = row.Level,
+                            SizeBytes = 0,
+                            SizeHuman = "0 B",
+                            Status = "clean"
+                        });
+                    }
+                    else
+                    {
+                        // 用户保留了部分子项目，重新轻量扫描刷新该规则保留的体积
+                        var freshResult = _engine.ScanRule(row.Rule);
+                        row.ApplyResult(freshResult);
+                    }
+                }
+                else
+                {
+                    row.ApplyResult(new PlanRow
+                    {
+                        Id = row.Id,
+                        Name = row.Name,
+                        Level = row.Level,
+                        SizeBytes = 0,
+                        SizeHuman = "0 B",
+                        Status = "clean"
+                    });
+                }
             }
             UpdateTotal();
 
@@ -273,6 +299,35 @@ public partial class CleanerPage : Page
             ScanRing.IsActive = false;
             ApplyRecycleButton.IsEnabled = true;
             ApplyPermanentButton.IsEnabled = true;
+        }
+    }
+
+    private void ToggleExpand_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.DataContext is CleanerRuleRow row)
+        {
+            row.IsExpanded = !row.IsExpanded;
+        }
+    }
+
+    private void OpenFolder_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string path)
+        {
+            try
+            {
+                string targetToOpen = Directory.Exists(path) ? path : (Path.GetDirectoryName(path) ?? path);
+                if (Directory.Exists(targetToOpen))
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = "explorer.exe",
+                        Arguments = $"\"{targetToOpen}\"",
+                        UseShellExecute = true
+                    });
+                }
+            }
+            catch { }
         }
     }
 }

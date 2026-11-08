@@ -1,55 +1,60 @@
-# 实施计划 - 代理细节丰富化、发布包极简收纳与回收站卡顿治理
+# 实施计划 - 规则多项目子选项细化与 Rust/Node 精准勾选清理
 
 ## 1. 现状感知与问题根因 (Context)
-用户在实机使用中反馈了三个核心体验痛点：
-1. **代理细节表达不足**：当前仅显示两行字，未能直观展现代理类型（HTTP/Socks/PAC）、服务器端口、连通性延迟、注册表二进制标志位（Flags）、环境变量与 WorkBuddy 保护状态。
-2. **发布包文件散乱难找**：解压后根目录平铺了 177 个 DLL、winmd、pdb、json 文件，用户难以一眼找到可执行程序；发布 release 缺乏自动化流程。
-3. **全部移入回收站导致卡顿与塞爆**：对 Temp/DXCache 等包含数千个小碎片的规则强行 `FOF_ALLOWUNDO` 移入回收站，在 `$Recycle.Bin` 中写入数千个独立 `$I/$R` 项，导致 Windows 资源管理器与回收站假死。
+用户在实机使用 Rust target 扫描时反馈两个关键问题：
+1. **无法针对具体项目选择性清理 (核心诉求)**：
+   - 现有的“Rust 构建产物 (target)”和“Node 项目依赖 (node_modules)”作为整体单一选项呈现；
+   - 扫描发现 8 处 Rust target（共 30.28 GiB，如 tern/target 占 20.50 GiB、zerogravity-src 占 5.79 GiB），或者 80 处 node_modules；
+   - 用户无法单独保留当前正在开发的项目 target，而必须“要么全删要么全留”，容易导致误删正在开发中的编译缓存。
+2. **UI 文本重叠严重 (视觉 BUG)**：
+   - `rules.json` 中 `size_hint` 包含了超长中文注释（如 `30.28 GiB（8 处；最大 tern/target 20.50 GiB、zerogravity-src 5.79 GiB）`）；
+   - 前端在未扫描状态下直接将这串长文本塞入右侧 `SizeDisplay`，且未做列宽弹性限制与文本截断，导致左侧标题与右侧容量发生严重视觉重叠撞车。
+
+---
 
 ## 2. 详细改造方案 (Thought)
 
-### 模块 A：代理体检详情可视化与丰富表达 (ProxyDoctor)
-- **数据层 (`ProxyDoctor.cs`)**：
-  - 扩展 `ProxyDiagnosisResult`，加入：
-    - 代理工作模式 (`ProxyTypeDisplay`)：手动代理 / 自动 PAC / 系统直连 / 幽灵冲突
-    - 代理服务器与端口 (`Server`, `Port`)、绕过列表 (`ProxyOverride`)、PAC URL
-    - 注册表底层标志位解析 (`BinaryFlagsHex`, `BinaryFlagsDescription`)
-    - 本地端口连通性延迟 (`LoopbackLatencyMs`)
-    - 环境变量污染详情 (`UserEnvHttp`)
-    - WorkBuddy 免疫状态 (`WorkBuddyMode`)
-- **UI 层 (`DashboardPage.xaml` / `.cs`)**：
-  - 状态栏：大图标 + 醒目标签 + 快捷操作（【重新体检】与【一键安全修复】）。
-  - 中部：**4 宫格核心配置指示面板 (Fluent Metric Tiles)**（工作模式、服务器端口、本地端口健康度、WinINET 标志位）。
-  - 底部：**【技术排查与底层取证详情】Expander**，结构化展示注册表、环境变量与工具链状态。
+### 模块 A：底层数据与引擎支持子项目明细与精准执行
+- **`CleanerEngine.cs` 数据结构升级**：
+  - 新增 `SubPathItem` 记录类：
+    - `Path`: 项目完整绝对路径；
+    - `Name`: 友好项目展示名（如 `tern/target`）；
+    - `SizeBytes`: 单独项目的实际字节数；
+    - `FilesCount`: 单独项目的文件数量；
+    - `IsSelected`: 单独项目的勾选状态（默认 true）。
+  - `PlanRow` 增加 `List<SubPathItem> SubItems`。
+- **扫描逻辑升级 (`ScanRule`)**：
+  - 扫描遍历 `existing` 路径时，单独记录每个路径的 `SizeBytes` 与 `FilesCount`；
+  - 按照体积从大到小降序排列（让占用最大的陈旧项目排在最前面，一目了然）。
+- **执行逻辑升级 (`ExecutePlan`)**：
+  - 如果规则行存在 `SubItems`，只对 `SubItems.Where(s => s.IsSelected)` 的物理路径执行清理；
+  - 未勾选的项目物理路径绝对不碰，坚决保留！
 
-### 模块 B：发布包极简收纳架构与一键 Release 自动化
-- **启动器设计 (`DiskGuardian.Launcher`)**：
-  - 根目录提供轻量无窗口启动器 `DiskGuardian.exe`，自动拉起 `app/DiskGuardian.UI.exe`。
-  - 打包结构：
-    ```text
-    disk-guardian-winui3-win-x64/
-    ├── DiskGuardian.exe     (根目录双击直接启动，极速无感知)
-    ├── rules.json
-    ├── 使用说明.txt
-    └── app/                 (收纳全部 170+ 个 DLL、winmd 与运行时依赖)
-    ```
-- **CI 流水线优化 (`.github/workflows/build.yml`)**：
-  - 打包时剥离 `.pdb` 调试符号，生成干净的根目录结构。
-  - 增加 GitHub Release 自动发布工作流（打 tag 如 `v*` 时自动创建 GitHub Release 并附带发布资产）。
+### 模块 B：ViewModel 层 (`CleanerRuleRow.cs` 与 `CleanerSubItemRow.cs`)
+- **消除文本重叠**：
+  - 构造函数初始化时，右侧 `SizeDisplay` 在未扫描状态下固定为简洁的 `"未扫描"`，彻底杜绝括号长文本塞入右侧引起的重叠。
+- **子项 ViewModel 与联动计算**：
+  - 新增 `CleanerSubItemRow`：包含 `Name`, `Path`, `SizeBytes`, `SizeHuman`, `IsSelected`，双向绑定；
+  - 父级 `CleanerRuleRow` 包含 `ObservableCollection<CleanerSubItemRow> SubItemRows`；
+  - 子项勾选/取消勾选时，动态重新计算父级当前选中的 `SizeBytes`，并触发页面总可释放体积更新；
+  - 增加 `HasSubItems`（当子项目数量 > 1 时为 true）与 `IsExpanded` 控制折叠展开。
 
-###模块 C：解决回收站塞爆卡顿与双清理模式
-- **引擎支持极速物理清理 (`CleanerEngine.cs`)**：
-  - `ExecutePlan` 增加 `permanent = false` 选项。
-  - 针对纯临时缓存（Temp, DXCache, INetCache 等）支持极速物理删除，免去 Windows Shell 生成数千个 `$I/$R` 带来的卡死。
-- **界面交互升级 (`CleanerPage.xaml` / `.cs`)**：
-  - 底部提供双操作按钮：【移入回收站 (可撤销)】与【直接永久清理 (极速模式)】。
-  - 智能安全拦截：当待清理项包含超过 500 个散落小文件时，弹窗友好提示并推荐【直接永久清理】。
-- **回收站管理页面调优 (`RecyclePage.xaml` / `.cs`)**：
-  - 优化大列表加载性能，支持安全清空回收站，快速释放当前已滞留的 4,000+ 个临时文件。
+### 模块 C：WinUI 3 界面交互升级 (`CleanerPage.xaml` / `.cs`)
+- **列宽与文本重叠防护**：
+  - 给标题与容量区域配置合理的 Grid 比例与弹性边距，增加 `TextTrimming="CharacterEllipsis"`，彻底杜绝重叠。
+- **项目子清单折叠/展开区域**：
+  - 在卡片内提供展开入口（例如：`展开查看 8 处项目明细 (按占用从大到小排序)`）；
+  - 展开后展示嵌套项目列表：
+    - 每个子项目独立 CheckBox；
+    - 醒目显示项目名（如 `tern/target`）与完整物理路径；
+    - 独立容量大号加粗展示（如 `20.50 GiB`）；
+    - 提供【定位文件夹】按钮（点击直接调用资源管理器打开该项目所在位置，方便确认）。
+
+---
 
 ## 3. 验证与自测标准 (Verification)
-- 21 项硬禁区代码化自测 100% PASS。
-- 本地与 CI 编译 0 警告 0 错误。
-- 启动器双击秒开，解压根目录干净清爽。
-- 代理面板各项指标清晰完整。
-- 极速清理临时缓存毫秒级完成，回收站不再膨胀。
+1. 21 项安全硬禁区自测 100% PASS。
+2. 扫描包含多项目的规则（如 Rust target 或 node_modules），可以完整列出每个项目的独立体积。
+3. 单独取消勾选某个子项目（如取消勾选 zerogravity-src），总可释放体积动态扣除对应大小。
+4. 执行清理后，已取消勾选的项目文件完好无损，被勾选的项目被安全清理。
+5. 界面不再发生任何文字重叠与挤压。

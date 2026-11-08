@@ -1,9 +1,52 @@
 using System;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using DiskGuardian.Core.Engine;
+using Microsoft.UI.Xaml;
 
 namespace DiskGuardian.UI.ViewModels;
+
+public sealed class CleanerSubItemRow : INotifyPropertyChanged
+{
+    public SubPathItem Model { get; }
+    public string Name => Model.Name;
+    public string Path => Model.Path;
+    public long SizeBytes => Model.SizeBytes;
+    public string SizeHuman => CleanerEngine.HumanSize(SizeBytes);
+    public int FilesCount => Model.FilesCount;
+
+    private bool _isSelected = true;
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set
+        {
+            if (_isSelected != value)
+            {
+                _isSelected = value;
+                Model.IsSelected = value;
+                OnPropertyChanged();
+                SelectionChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+    }
+
+    public event EventHandler? SelectionChanged;
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public CleanerSubItemRow(SubPathItem model)
+    {
+        Model = model;
+        _isSelected = model.IsSelected;
+    }
+
+    private void OnPropertyChanged([CallerMemberName] string? name = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
+}
 
 public sealed class CleanerRuleRow : INotifyPropertyChanged
 {
@@ -19,6 +62,38 @@ public sealed class CleanerRuleRow : INotifyPropertyChanged
     public bool IsDiscover => Rule.Discover != null;
     public string TypeBadge => IsDiscover ? "D盘深层发现 (~30s)" : "快速缓存";
 
+    public ObservableCollection<CleanerSubItemRow> SubItemRows { get; } = new();
+    public bool HasSubItems => SubItemRows.Count > 1;
+    public Visibility SubItemsVisibility => HasSubItems ? Visibility.Visible : Visibility.Collapsed;
+
+    private bool _isExpanded = false;
+    public bool IsExpanded
+    {
+        get => _isExpanded;
+        set
+        {
+            if (_isExpanded != value)
+            {
+                _isExpanded = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(ExpandIconGlyph));
+                OnPropertyChanged(nameof(ExpandActionText));
+                OnPropertyChanged(nameof(ExpandedVisibility));
+            }
+        }
+    }
+
+    public Visibility ExpandedVisibility => (HasSubItems && _isExpanded) ? Visibility.Visible : Visibility.Collapsed;
+
+    public string ExpandIconGlyph => _isExpanded ? "\uE70E" : "\uE70D"; // ChevronDown : ChevronRight
+    public string ExpandActionText => _isExpanded ? "收起明细" : $"展开各项目明细 ({SubItemRows.Count} 处)";
+
+    public string SubItemsSummary => HasSubItems
+        ? $"已勾选 {SubItemRows.Count(s => s.IsSelected)} / {SubItemRows.Count} 处项目"
+        : string.Empty;
+
+    private bool _isSyncingSelection = false;
+
     private bool _isSelected = true;
     public bool IsSelected
     {
@@ -29,6 +104,18 @@ public sealed class CleanerRuleRow : INotifyPropertyChanged
             {
                 _isSelected = value;
                 OnPropertyChanged();
+
+                if (!_isSyncingSelection && SubItemRows.Count > 0)
+                {
+                    _isSyncingSelection = true;
+                    foreach (var sub in SubItemRows)
+                    {
+                        sub.IsSelected = value;
+                    }
+                    _isSyncingSelection = false;
+                    RecalculateSelectedSize();
+                }
+
                 SelectionChanged?.Invoke(this, EventArgs.Empty);
             }
         }
@@ -48,7 +135,7 @@ public sealed class CleanerRuleRow : INotifyPropertyChanged
         private set { _sizeBytes = value; OnPropertyChanged(); }
     }
 
-    private string _sizeDisplay = "未扫描";
+    private string _sizeDisplay = "待扫描";
     public string SizeDisplay
     {
         get => _sizeDisplay;
@@ -90,7 +177,7 @@ public sealed class CleanerRuleRow : INotifyPropertyChanged
     {
         Rule = rule;
         _isSelected = isSelectedDefault;
-        _sizeDisplay = !string.IsNullOrEmpty(rule.SizeHint) ? $"待扫描 ({rule.SizeHint})" : "待扫描";
+        _sizeDisplay = "待扫描";
         _status = "pending";
     }
 
@@ -104,19 +191,75 @@ public sealed class CleanerRuleRow : INotifyPropertyChanged
     {
         ScannedResult = result;
         IsScanned = true;
-        SizeBytes = result.SizeBytes;
-        SizeDisplay = result.SizeHuman;
         Status = result.Status;
 
-        // 扫描完成后，如果已被清理干净或被拦截，取消勾选；如果有可清理体积则勾选
+        // 加载子项目明细
+        SubItemRows.Clear();
+        if (result.SubItems != null && result.SubItems.Count > 0)
+        {
+            foreach (var sub in result.SubItems)
+            {
+                var subRow = new CleanerSubItemRow(sub);
+                subRow.SelectionChanged += (s, e) => OnSubItemSelectionChanged();
+                SubItemRows.Add(subRow);
+            }
+        }
+
+        RecalculateSelectedSize();
+
+        OnPropertyChanged(nameof(HasSubItems));
+        OnPropertyChanged(nameof(SubItemsVisibility));
+        OnPropertyChanged(nameof(ExpandedVisibility));
+        OnPropertyChanged(nameof(SubItemsSummary));
+        OnPropertyChanged(nameof(ExpandActionText));
+
+        // 默认若有多个项目，自动展开让用户一目了然
+        if (HasSubItems && result.Status == "ready")
+        {
+            IsExpanded = true;
+        }
+
         if (result.Status == "ready" && result.SizeBytes > 0)
         {
+            _isSyncingSelection = true;
             IsSelected = true;
+            _isSyncingSelection = false;
         }
         else if (result.Status == "clean" || result.Status == "blocked")
         {
+            _isSyncingSelection = true;
             IsSelected = false;
+            _isSyncingSelection = false;
         }
+    }
+
+    private void OnSubItemSelectionChanged()
+    {
+        if (_isSyncingSelection) return;
+
+        RecalculateSelectedSize();
+
+        int selectedSubCount = SubItemRows.Count(s => s.IsSelected);
+        _isSyncingSelection = true;
+        IsSelected = selectedSubCount > 0;
+        _isSyncingSelection = false;
+
+        OnPropertyChanged(nameof(SubItemsSummary));
+        SelectionChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void RecalculateSelectedSize()
+    {
+        if (SubItemRows.Count > 0)
+        {
+            SizeBytes = SubItemRows.Where(s => s.IsSelected).Sum(s => s.SizeBytes);
+        }
+        else if (ScannedResult != null)
+        {
+            SizeBytes = IsSelected ? ScannedResult.SizeBytes : 0;
+        }
+
+        SizeDisplay = CleanerEngine.HumanSize(SizeBytes);
     }
 
     public void ResetToPending()
@@ -124,8 +267,14 @@ public sealed class CleanerRuleRow : INotifyPropertyChanged
         ScannedResult = null;
         IsScanned = false;
         SizeBytes = 0;
-        SizeDisplay = !string.IsNullOrEmpty(Rule.SizeHint) ? $"待扫描 ({Rule.SizeHint})" : "待扫描";
+        SizeDisplay = "待扫描";
         Status = "pending";
+        SubItemRows.Clear();
+        IsExpanded = false;
+        OnPropertyChanged(nameof(HasSubItems));
+        OnPropertyChanged(nameof(SubItemsVisibility));
+        OnPropertyChanged(nameof(ExpandedVisibility));
+        OnPropertyChanged(nameof(SubItemsSummary));
     }
 
     private void OnPropertyChanged([CallerMemberName] string? name = null)

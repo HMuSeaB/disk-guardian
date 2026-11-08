@@ -70,40 +70,89 @@
                   CornerRadius="8" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
             <ListView.ItemTemplate>
                 <DataTemplate>
-                    <Grid Padding="14,10" ColumnSpacing="16">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
+                    <StackPanel Padding="14,12" Spacing="8">
+                        <!-- 顶层主行卡片 -->
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
 
-                        <!-- 选择勾选框 -->
-                        <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected, Mode=TwoWay}" 
-                                  VerticalAlignment="Center"/>
+                            <!-- 选择勾选框 -->
+                            <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected, Mode=TwoWay}" 
+                                      VerticalAlignment="Center"/>
 
-                        <!-- 规则详情 -->
-                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14"/>
-                                <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="6,2">
-                                    <TextBlock Text="{Binding LevelDisplay}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                </Border>
-                                <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="6,2">
-                                    <TextBlock Text="{Binding TypeBadge}" FontSize="11" Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
-                                </Border>
-                                <TextBlock Text="{Binding SizeHint}" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center"/>
+                            <!-- 规则详情 -->
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14"/>
+                                    <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="6,2">
+                                        <TextBlock Text="{Binding LevelDisplay}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    </Border>
+                                    <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="6,2">
+                                        <TextBlock Text="{Binding TypeBadge}" FontSize="11" Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+                                    </Border>
+                                    <TextBlock Text="{Binding SizeHint}" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" 
+                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                                <TextBlock Text="{Binding Note}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding Rebuild}" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextWrapping="Wrap"/>
+
+                                <!-- 多项目展开控制入口 -->
+                                <StackPanel Orientation="Horizontal" Spacing="10" Visibility="{Binding SubItemsVisibility}" Margin="0,4,0,0">
+                                    <HyperlinkButton Padding="0" Click="ToggleExpand_Click">
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <FontIcon Glyph="{Binding ExpandIconGlyph}" FontSize="11"/>
+                                            <TextBlock Text="{Binding ExpandActionText}" FontSize="12" FontWeight="SemiBold"/>
+                                        </StackPanel>
+                                    </HyperlinkButton>
+                                    <TextBlock Text="{Binding SubItemsSummary}" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center"/>
+                                </StackPanel>
                             </StackPanel>
-                            <TextBlock Text="{Binding Note}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            <TextBlock Text="{Binding Rebuild}" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                        </StackPanel>
 
-                        <!-- 容量与扫描状态 -->
-                        <StackPanel Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="4">
-                            <TextBlock Text="{Binding SizeDisplay}" FontWeight="Bold" FontSize="15" HorizontalAlignment="Right"/>
-                            <TextBlock Text="{Binding StatusDisplay}" FontSize="11" HorizontalAlignment="Right" 
-                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                        </StackPanel>
-                    </Grid>
+                            <!-- 容量与扫描状态 -->
+                            <StackPanel Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="4" MinWidth="110">
+                                <TextBlock Text="{Binding SizeDisplay}" FontWeight="Bold" FontSize="15" HorizontalAlignment="Right"/>
+                                <TextBlock Text="{Binding StatusDisplay}" FontSize="11" HorizontalAlignment="Right" 
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- 子项目明细列表 (展开时展示) -->
+                        <Border Visibility="{Binding ExpandedVisibility}"
+                                Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                                CornerRadius="6" Padding="12,8" Margin="36,4,0,0">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="已发现项目明细 (取消勾选即可保留对应项目 target/依赖，免除重复编译或重装):" 
+                                           FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <ItemsControl ItemsSource="{Binding SubItemRows}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Padding="6,4" ColumnSpacing="12">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected, Mode=TwoWay}" VerticalAlignment="Center"/>
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding Path}" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="2" Text="{Binding SizeHuman}" FontWeight="SemiBold" FontSize="12" 
+                                                           VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="{ThemeResource AccentAAFillColorDefaultBrush}"/>
+                                                <Button Grid.Column="3" Content="定位" Padding="8,2" FontSize="11" 
+                                                        Click="OpenFolder_Click" Tag="{Binding Path}" ToolTipService.ToolTip="在文件资源管理器中打开此目录"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>

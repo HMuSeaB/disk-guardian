@@ -318,8 +318,8 @@
           "\\windows\\"
         ]
       },
-      "size_hint": "30.28 GiB（8 处；最大 tern/target 20.50 GiB、zerogravity-src 5.79 GiB）",
-      "rebuild": "cargo build 自动重建。但 20 GiB 级项目冷编译要数十分钟到数小时，别在赶工时清",
+      "size_hint": "~30.28 GiB (8 处项目)",
+      "rebuild": "cargo build 自动重建。支持在明细中按需单项清理或保留正在开发的项目",
       "why": "Dism++ 没有这个概念。D 盘只剩 3.8% 时的第一大头",
       "note": "只在同级目录存在 Cargo.toml 时才认定，裸名叫 target 的目录一律不碰"
     },
@@ -344,8 +344,8 @@
           "\\windows\\"
         ]
       },
-      "size_hint": "9.17 GiB（80 余处，约 50 万文件）",
-      "rebuild": "npm install / pnpm install 重装，要联网。pnpm 项目优先用 pnpm store prune",
+      "size_hint": "~9.17 GiB (80 余处项目)",
+      "rebuild": "npm install / pnpm install 重装，支持展开子项目逐项精准清理",
       "why": "Dism++ 未覆盖。单个项目看不出大，80 个叠起来是 9 GiB",
       "note": "只在同级目录存在 package.json 时才认定。bin/build/dist 因语义歧义不做成规则"
     }

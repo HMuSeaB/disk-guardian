@@ -101,4 +101,15 @@ public sealed class PlanRow
 
     public bool IsReady => Status == "ready";
     public bool IsSelected { get; set; } = true;
+    public List<SubPathItem> SubItems { get; set; } = new();
+}
+
+public sealed class SubPathItem
+{
+    public string Path { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public long SizeBytes { get; set; }
+    public string SizeHuman => CleanerEngine.HumanSize(SizeBytes);
+    public int FilesCount { get; set; }
+    public bool IsSelected { get; set; } = true;
 }
