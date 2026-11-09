@@ -1,38 +1,34 @@
 <div align="center">
 
-```text
-██████  ██ ███████ ██   ██      ██████  ██    ██  █████  ██████  ██████  ██  █████  ███    ██ 
-██   ██ ██ ██      ██  ██      ██       ██    ██ ██   ██ ██   ██ ██   ██ ██ ██   ██ ████   ██ 
-██   ██ ██ ███████ █████       ██   ███ ██    ██ ███████ ██████  ██   ██ ██ ███████ ██ ██  ██ 
-██   ██ ██      ██ ██  ██      ██    ██ ██    ██ ██   ██ ██   ██ ██   ██ ██ ██   ██ ██  ██ ██ 
-██████  ██ ███████ ██   ██      ██████   ██████  ██   ██ ██   ██ ██████  ██ ██   ██ ██   ████
-```
+  <img src="assets/icon.png" width="120" height="120" alt="DiskGuardian Icon" style="border-radius: 26px; box-shadow: 0 10px 30px rgba(0,0,0,0.35);" />
 
-### **Windows Native Workspace & System Deep Guardian · Blue-Screen Incident Safe · Agent IDE Proxy Doctor**
+  <h1>DiskGuardian</h1>
 
-Focusing on gaps left by Dism++ and dedicated to modern development environments: Shader caches · Itemized Rust target / Node modules governance · Ghost proxy penetration · 25H2 BSOD observation protection
+  <p><b>Windows Native Workspace & System Deep Guardian · Blue-Screen Incident Safe · Agent IDE Proxy Doctor</b></p>
 
-<p align="center">
-  <a href="README.md">简体中文</a> • <b>English</b>
-</p>
+  <p>Covering Dism++ blind spots · Shader & Dev cache itemized governance · Ghost proxy penetration · 25H2 BSOD observation protection</p>
 
-<p align="center">
-  <a href="https://github.com/HMuSeaB/disk-guardian/releases/latest"><img src="https://img.shields.io/github/v/release/HMuSeaB/disk-guardian?color=10b981&label=Release&style=flat-square" alt="Release"></a>
-  <a href="https://dotnet.microsoft.com/"><img src="https://img.shields.io/badge/.NET-9.0%20%7C%20C%23-512BD4?style=flat-square&logo=dotnet" alt=".NET Version"></a>
-  <a href="https://github.com/microsoft/microsoft-ui-xaml"><img src="https://img.shields.io/badge/UI-WinUI%203%20WindowsAppSDK-0078D7?style=flat-square&logo=windows11" alt="WinUI 3"></a>
-  <a href="https://github.com/HMuSeaB/disk-guardian/releases"><img src="https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20(x64)-0078D4?style=flat-square" alt="Platform"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-amber?style=flat-square" alt="License"></a>
-  <a href="#-portable-zero-dependency-architecture"><img src="https://img.shields.io/badge/Portable-Zero%20Dependency-8b5cf6?style=flat-square" alt="Single Portable"></a>
-</p>
+  <p align="center">
+    <a href="README.md">简体中文</a> • <b>English</b>
+  </p>
 
-<p align="center">
-  <a href="#-design-background--philosophy">Background</a> •
-  <a href="#-system-architecture">Architecture</a> •
-  <a href="#-core-features">Features</a> •
-  <a href="#-quick-start">Quick Start</a> •
-  <a href="#-cli-reference">CLI Reference</a> •
-  <a href="#-hard-coded-safety-self-tests">Safety Self-tests</a>
-</p>
+  <p align="center">
+    <a href="https://github.com/HMuSeaB/disk-guardian/releases/latest"><img src="https://img.shields.io/github/v/release/HMuSeaB/disk-guardian?color=10b981&label=Release&style=flat-square" alt="Release"></a>
+    <a href="https://dotnet.microsoft.com/"><img src="https://img.shields.io/badge/.NET-9.0%20%7C%20C%23-512BD4?style=flat-square&logo=dotnet" alt=".NET Version"></a>
+    <a href="https://github.com/microsoft/microsoft-ui-xaml"><img src="https://img.shields.io/badge/UI-WinUI%203%20WindowsAppSDK-0078D7?style=flat-square&logo=windows11" alt="WinUI 3"></a>
+    <a href="https://github.com/HMuSeaB/disk-guardian/releases"><img src="https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20(x64)-0078D4?style=flat-square" alt="Platform"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-amber?style=flat-square" alt="License"></a>
+    <a href="#-portable-zero-dependency-architecture"><img src="https://img.shields.io/badge/Portable-Zero%20Dependency-8b5cf6?style=flat-square" alt="Single Portable"></a>
+  </p>
+
+  <p align="center">
+    <a href="#-design-background--philosophy">Background</a> •
+    <a href="#-system-architecture">Architecture</a> •
+    <a href="#-core-features">Features</a> •
+    <a href="#-quick-start">Quick Start</a> •
+    <a href="#-cli-reference">CLI Reference</a> •
+    <a href="#-hard-coded-safety-self-tests">Safety Self-tests</a>
+  </p>
 
 </div>
 
@@ -162,3 +158,4 @@ disk-guardian --purge
 ## 📄 License
 
 This project is open-sourced under the [MIT License](LICENSE).
+

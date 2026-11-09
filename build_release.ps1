@@ -1,4 +1,4 @@
-﻿$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Stop"
 
 Write-Host "=== DiskGuardian 一键构建与极简打包流水线 ===" -ForegroundColor Cyan
 

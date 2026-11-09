@@ -29,3 +29,5 @@ publish/
 *.suo
 *.res
 
+
+/DiskGuardian.exe

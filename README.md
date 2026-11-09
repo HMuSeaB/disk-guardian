@@ -1,38 +1,34 @@
 <div align="center">
 
-```text
-██████  ██ ███████ ██   ██      ██████  ██    ██  █████  ██████  ██████  ██  █████  ███    ██ 
-██   ██ ██ ██      ██  ██      ██       ██    ██ ██   ██ ██   ██ ██   ██ ██ ██   ██ ████   ██ 
-██   ██ ██ ███████ █████       ██   ███ ██    ██ ███████ ██████  ██   ██ ██ ███████ ██ ██  ██ 
-██   ██ ██      ██ ██  ██      ██    ██ ██    ██ ██   ██ ██   ██ ██   ██ ██ ██   ██ ██  ██ ██ 
-██████  ██ ███████ ██   ██      ██████   ██████  ██   ██ ██   ██ ██████  ██ ██   ██ ██   ████
-```
+  <img src="assets/icon.png" width="120" height="120" alt="DiskGuardian Icon" style="border-radius: 26px; box-shadow: 0 10px 30px rgba(0,0,0,0.35);" />
 
-### **Windows 原生开发环境与空间深度守护套件 · 系统级防误杀 · Agent IDE 代理防线**
+  <h1>DiskGuardian</h1>
 
-专注覆盖 Dism++ 盲区，专治现代开发者环境：着色器缓存 · Rust target / Node modules 细化治理 · 幽灵代理穿透 · 25H2 蓝屏观察期防护
+  <p><b>Windows 原生高负载开发环境与空间深度守护套件 · 系统级防误杀 · Agent IDE 代理防线</b></p>
 
-<p align="center">
-  <b>简体中文</b> • <a href="README_EN.md">English</a>
-</p>
+  <p>专注攻克 Dism++ 盲区 · 着色器与现代开发缓存精准治理 · 幽灵代理穿透自愈 · 25H2 蓝屏观察期防护</p>
 
-<p align="center">
-  <a href="https://github.com/HMuSeaB/disk-guardian/releases/latest"><img src="https://img.shields.io/github/v/release/HMuSeaB/disk-guardian?color=10b981&label=Release&style=flat-square" alt="Release"></a>
-  <a href="https://dotnet.microsoft.com/"><img src="https://img.shields.io/badge/.NET-9.0%20%7C%20C%23-512BD4?style=flat-square&logo=dotnet" alt=".NET Version"></a>
-  <a href="https://github.com/microsoft/microsoft-ui-xaml"><img src="https://img.shields.io/badge/UI-WinUI%203%20WindowsAppSDK-0078D7?style=flat-square&logo=windows11" alt="WinUI 3"></a>
-  <a href="https://github.com/HMuSeaB/disk-guardian/releases"><img src="https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20(x64)-0078D4?style=flat-square" alt="Platform"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-amber?style=flat-square" alt="License"></a>
-  <a href="#-极简绿色免安装架构"><img src="https://img.shields.io/badge/Portable-Zero%20Dependency-8b5cf6?style=flat-square" alt="Single Portable"></a>
-</p>
+  <p align="center">
+    <b>简体中文</b> • <a href="README_EN.md">English</a>
+  </p>
 
-<p align="center">
-  <a href="#-设计背景与定位">设计背景</a> •
-  <a href="#-系统架构拓扑">系统架构</a> •
-  <a href="#-四大核心守护特性">核心特性</a> •
-  <a href="#-快速上手与操作指南">快速上手</a> •
-  <a href="#-命令行-cli-矩阵">CLI 矩阵</a> •
-  <a href="#-安全硬禁区代码化自测">安全自测</a>
-</p>
+  <p align="center">
+    <a href="https://github.com/HMuSeaB/disk-guardian/releases/latest"><img src="https://img.shields.io/github/v/release/HMuSeaB/disk-guardian?color=10b981&label=Release&style=flat-square" alt="Release"></a>
+    <a href="https://dotnet.microsoft.com/"><img src="https://img.shields.io/badge/.NET-9.0%20%7C%20C%23-512BD4?style=flat-square&logo=dotnet" alt=".NET Version"></a>
+    <a href="https://github.com/microsoft/microsoft-ui-xaml"><img src="https://img.shields.io/badge/UI-WinUI%203%20WindowsAppSDK-0078D7?style=flat-square&logo=windows11" alt="WinUI 3"></a>
+    <a href="https://github.com/HMuSeaB/disk-guardian/releases"><img src="https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20(x64)-0078D4?style=flat-square" alt="Platform"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-amber?style=flat-square" alt="License"></a>
+    <a href="#-极简绿色免安装架构"><img src="https://img.shields.io/badge/Portable-Zero%20Dependency-8b5cf6?style=flat-square" alt="Single Portable"></a>
+  </p>
+
+  <p align="center">
+    <a href="#-设计背景与定位">设计背景</a> •
+    <a href="#-系统架构拓扑">系统架构</a> •
+    <a href="#-四大核心守护特性">核心特性</a> •
+    <a href="#-快速上手与操作指南">快速上手</a> •
+    <a href="#-命令行-cli-矩阵">CLI 矩阵</a> •
+    <a href="#-安全硬禁区代码化自测">安全自测</a>
+  </p>
 
 </div>
 
