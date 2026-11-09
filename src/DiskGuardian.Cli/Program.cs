@@ -41,6 +41,11 @@ public static class Program
             return RunFixProxy();
         }
 
+        if (args.Contains("--harden-ide-proxy"))
+        {
+            return RunHardenIdeProxy();
+        }
+
         int level = 1;
         for (int i = 0; i < args.Length; i++)
         {
@@ -162,16 +167,19 @@ public static class Program
         if (!string.IsNullOrEmpty(report.ProxyOverride))
             Console.WriteLine($"  * 绕过名单:     {report.ProxyOverride}");
 
-        Console.WriteLine("\n--- 下游环境与工具链检查 ---");
+        Console.WriteLine("\n--- 下游环境与主流 Agent IDE 防线 ---");
         Console.WriteLine($"  * 用户环境变量: {report.EnvStatusDisplay}");
         Console.WriteLine($"  * Git 全局代理: {report.GitStatusDisplay}");
-        if (report.WorkBuddyDetected)
+        Console.WriteLine($"  * IDE 代理综合: {report.AppHardeningDisplay}");
+
+        if (report.IdeList.Count > 0)
         {
-            Console.WriteLine($"  * WorkBuddy防线: {report.WorkBuddyStatusDisplay}");
-        }
-        else
-        {
-            Console.WriteLine($"  * 应用隔离加固: {report.AppHardeningDisplay}");
+            Console.WriteLine("\n--- 已识别 Agent IDE 独立诊断 ---");
+            foreach (var ide in report.IdeList)
+            {
+                Console.WriteLine($"  [{ide.Name}] {ide.StatusDisplay}");
+                Console.WriteLine($"     路径: {ide.SettingsPath}");
+            }
         }
 
         if (report.Details.Count > 0)
@@ -206,5 +214,23 @@ public static class Program
             Console.WriteLine($"[修复失败]: {res.ErrorMessage}");
             return 1;
         }
+    }
+
+    private static int RunHardenIdeProxy()
+    {
+        Console.WriteLine("=== disk-guardian 主流 Agent IDE 代理防线一键加固 ===\n");
+        Console.WriteLine("正在探测 VS Code, Cursor, Trae, WorkBuddy, Windsurf 等并注入 proxySupport 与活跃代理...\n");
+
+        var (count, logs) = ProxyDoctor.HardenAllIdeProxies();
+        foreach (var l in logs)
+        {
+            Console.WriteLine($"  ✓ {l}");
+        }
+
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine($"\n[加固完成] 共为 {count} 款已安装的 Agent IDE 成功开启代理支持与本地绑定！");
+        Console.WriteLine("重启对应 IDE 后，自定义海外模型（DeepSeek、Claude、OpenAI、TokenHarbor 等）即可顺畅连通。");
+        Console.ResetColor();
+        return 0;
     }
 }

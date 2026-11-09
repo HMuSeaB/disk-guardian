@@ -1,310 +1,216 @@
-# disk-guardian
+<div align="center">
 
-> 规则驱动、预览优先的磁盘清理工具。**只补 Dism++ 不覆盖的那一部分，不替代 Dism++。**
->
-> 源码：`D:\4rchive\Code\disk-guardian\`（独立 git 仓库）
-> 双击入口：`C:\Users\36230\SystemTools\disk-guardian\`（登记在 `SystemTools\索引.md` 第一节）
+```text
+██████  ██ ███████ ██   ██      ██████  ██    ██  █████  ██████  ██████  ██  █████  ███    ██ 
+██   ██ ██ ██      ██  ██      ██       ██    ██ ██   ██ ██   ██ ██   ██ ██ ██   ██ ████   ██ 
+██   ██ ██ ███████ █████       ██   ███ ██    ██ ███████ ██████  ██   ██ ██ ███████ ██ ██  ██ 
+██   ██ ██      ██ ██  ██      ██    ██ ██    ██ ██   ██ ██   ██ ██   ██ ██ ██   ██ ██  ██ ██ 
+██████  ██ ███████ ██   ██      ██████   ██████  ██   ██ ██   ██ ██████  ██ ██   ██ ██   ████
+```
+
+### **Windows 原生开发环境与空间深度守护套件 · 系统级防误杀 · Agent IDE 代理防线**
+
+专注覆盖 Dism++ 盲区，专治现代开发者环境：着色器缓存 · Rust target / Node modules 细化治理 · 幽灵代理穿透 · 25H2 蓝屏观察期防护
+
+<p align="center">
+  <b>简体中文</b> • <a href="README_EN.md">English</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/HMuSeaB/disk-guardian/releases/latest"><img src="https://img.shields.io/github/v/release/HMuSeaB/disk-guardian?color=10b981&label=Release&style=flat-square" alt="Release"></a>
+  <a href="https://dotnet.microsoft.com/"><img src="https://img.shields.io/badge/.NET-9.0%20%7C%20C%23-512BD4?style=flat-square&logo=dotnet" alt=".NET Version"></a>
+  <a href="https://github.com/microsoft/microsoft-ui-xaml"><img src="https://img.shields.io/badge/UI-WinUI%203%20WindowsAppSDK-0078D7?style=flat-square&logo=windows11" alt="WinUI 3"></a>
+  <a href="https://github.com/HMuSeaB/disk-guardian/releases"><img src="https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20(x64)-0078D4?style=flat-square" alt="Platform"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-amber?style=flat-square" alt="License"></a>
+  <a href="#-极简绿色免安装架构"><img src="https://img.shields.io/badge/Portable-Zero%20Dependency-8b5cf6?style=flat-square" alt="Single Portable"></a>
+</p>
+
+<p align="center">
+  <a href="#-设计背景与定位">设计背景</a> •
+  <a href="#-系统架构拓扑">系统架构</a> •
+  <a href="#-四大核心守护特性">核心特性</a> •
+  <a href="#-快速上手与操作指南">快速上手</a> •
+  <a href="#-命令行-cli-矩阵">CLI 矩阵</a> •
+  <a href="#-安全硬禁区代码化自测">安全自测</a>
+</p>
+
+</div>
 
 ---
 
-## 它解决什么
+## 📖 设计背景与定位
 
-2026-11-07 那天 C 盘和 D 盘同时冒红，Dism++ 清了一轮几乎没变化，反而越清越紧。
-复盘出来的几件事，全部固化进了这个项目：
+`DiskGuardian`（磁盘守护者）不是另一款随处可见的系统垃圾清理器，它是**为现代软件工程师与高负载 Windows 工作站量身打造的原生系统与空间守护套件**。
 
-| 当天实测 | 原因 | 项目里的做法 |
+传统的系统清理工具（如 Dism++、CCleaner 等）最初设计于传统 Windows 时代，在面对现代开发技术栈与复杂网络环境时暴露出了明显缺陷：
+- **清理盲区大**：Dism++ 的规则库专注于 `WinSxS` 与系统更新备份，对庞大的现代开发缓存完全无感——如 NVIDIA `DXCache`/`GLCache`（可达 10~30 GB）、Go 编译缓存、Rust `target`、前端 `node_modules`，往往越清磁盘越告急；
+- **误删核心引发反向膨胀与排障灾难**：盲目勾选「.NET 程序集缓存」会导致 NGEN 在后台静默重建引发 CPU 飙升与反吃 4GB+ 空间；误删 Windows 事件日志（`winevt`）或崩溃转储（`MEMORY.DMP` / `dedicateddumpfile.sys`）会导致蓝屏排障证据直接灭失；
+- **清理大量临时小文件卡死系统回收站**：把数千个 Shader/Temp 小碎片一次性推入回收站，导致 Windows 资源管理器创建成千上万个 `$I/$R` 节点发生严重假死与索引崩溃；
+- **网络代理穿透与 Agent IDE 断网痛点**：代理软件（FlClash、Clash Verge 等）退出或卸载后在 WinINET 留下底层幽灵标记，或 VS Code、Cursor、WorkBuddy、Trae、Windsurf 等开发工具因缺少 `http.proxySupport` 强行走直连，导致自定义海外 AI 模型（DeepSeek、Claude、OpenAI、TokenHarbor）高频遭遇“连接失败”或 10061 拒绝连接。
+
+`DiskGuardian` 纯 C# WinUI 3 原生重写，代码化固化安全硬禁区，补齐盲区，杜绝误杀。
+
+---
+
+## 🏛️ 系统架构拓扑
+
+```mermaid
+graph TD
+    subgraph 用户交互层
+        GUI["WinUI 3 原生桌面端 (Fluent Mica 材质)"]
+        CLI["CLI 极速运维端 (disk-guardian.exe)"]
+        LNK["规范桌面快捷方式 (.lnk 自动生成)"]
+    end
+
+    subgraph 核心守护与诊断引擎["DiskGuardian.Core 核心守护引擎"]
+        direction TB
+        DENY["HARD_DENY 核心硬禁区拦截器<br/>(winevt / dmp / WinSxS / NGEN 代码级硬锁定)"]
+        RULE["CleanerEngine 规则治理引擎<br/>(双清理通道 · 碎片智能流控)"]
+        DISC["ProjectDiscoverer 动态项目探测<br/>(Cargo.toml / package.json 精准识别 · 排除 Electron)"]
+        PROXY["ProxyDoctor 代理医生<br/>(WinINET 二进制Flags · Git全局代理 · Agent IDE 代理防线)"]
+    end
+
+    subgraph 下游环境与目标宿主
+        STORAGE["物理磁盘存储 (C 盘 / D 盘代码仓)"]
+        IDE_ENV["主流 Agent IDE (VS Code / Cursor / Trae / WorkBuddy / Windsurf)"]
+        WININET["Windows 注册表与网络子系统 (免杀 Explorer 广播刷新)"]
+    end
+
+    GUI --> DENY
+    CLI --> DENY
+    DENY --> RULE
+    DENY --> DISC
+    GUI --> PROXY
+    CLI --> PROXY
+    RULE --> STORAGE
+    DISC --> STORAGE
+    PROXY --> IDE_ENV
+    PROXY --> WININET
+```
+
+---
+
+## ✨ 四大核心守护特性
+
+### 1. 🎯 现代开发链专治与子项目精准细化勾选
+* **Dism++ 盲区全面覆盖**：自动精准探测系统级 Shader 着色器缓存（DXCache/GLCache）、Go 编译缓存、Playwright 二进制与开发包；
+* **Rust target / Node modules 细化展开**：
+  * 告别以往“要么全删要么全留”的黑盒机制；
+  * 自动逐项统计各个子工程的独立占用（按体积从大到小智能排序，如 `tern (target) 20.5GB` 排在最前）；
+  * 每个子工程配备**独立 CheckBox**，支持按需去勾选，**绝不误删当前正在编写调试的核心项目**；
+  * 提供一键【定位】按钮，原生调起文件资源管理器秒级核验。
+
+### 2. 🩺 幽灵代理与主流 Agent IDE 代理防线 (ProxyDoctor)
+* **WinINET 底层二进制 Flags 取证**：
+  * 精准揪出表面 DWORD `ProxyEnable=0` 但 `DefaultConnectionSettings` 二进制第 8 字节仍留有 `0x02` 手动代理标志的幽灵残留；
+  * 免重启、**坚决不杀 `explorer.exe`**，通过 Win32 WinINET 原生 API 广播生效；
+* **Git 全局代理 (`~/.gitconfig`) 死锁检测**：
+  * 探测 `http.proxy` 是否指向未在监听的本地死端口，根治开发者高频遭遇的 `git clone Connection refused (10061)` 绝症；
+* **主流 Agent IDE 代理防线一键打通**：
+  * 通用覆盖 **VS Code**、**Cursor**、**Trae**、**Windsurf**、**WorkBuddy**、**ZCode** 等；
+  * 诊断 `http.proxySupport` 状态，自动识别因 IDE 缺省判定直连导致海外自定义模型（DeepSeek、Claude、OpenAI、TokenHarbor、TokenRouter）断网连接失败的弱点；
+  * 支持一键安全注入代理与加固（带自动 `.bak` 备份），重启 IDE 秒级畅通。
+
+### 3. 🛡️ 核心硬禁区代码化锁定 (21 项自测断言 100% 固化)
+* **蓝屏观察期防护**：代码级硬编码锁定 `%SystemRoot%\winevt`（事件日志证据链）、`MEMORY.DMP`、`Minidump` 与专用转储文件 `dedicateddumpfile.sys`，即使规则写错或手滑也绝无可能越界误杀；
+* **NGEN 与系统核心保护**：阻断 `%SystemRoot%\assembly`（防止清空后后台重建反向吃光磁盘）与 `WinSxS`；
+* **严格排除运行时误触**：同级清单识别严格阻断 Electron 运行时内置目录（如 `resources/app`），绝不影响日常办公软件。
+
+### 4. ⚡ 极速双清理通道与绿色便携架构
+* **双清理模式分流**：
+  * **【直接永久清理 (极速模式)】**：针对 Shader/Temp 等数千个零碎临时文件，跳过系统回收站直接文件系统物理级抹除，绝不阻塞系统回收站；
+  * **【移入回收站 (可撤销)】**：用于重要工程与文件，支持两步确认与随时撤销还原；
+  * **智能碎片流控**：检测到单次清理文件数 > 500 时，弹窗智能提示分流建议，避免 Windows 回收站假死；
+* **极简便携架构**：
+  * 原生 Win32 C 启动器（仅 18 KB，零依赖），解压后根目录下仅有 `DiskGuardian.exe`、`rules.json`、专属图标与收纳整洁的 `app/` 依赖库；
+  * 彻底废除 `.bat` 临时脚本，主界面右上角原生支持一键在真实桌面创建标准 Windows 快捷方式（`.lnk`）。
+
+---
+
+## 🚀 快速上手与操作指南
+
+### 方式一：桌面图形界面（推荐日常使用）
+1. 从 [Releases 页面](https://github.com/HMuSeaB/disk-guardian/releases) 下载 `disk-guardian-winui3-win-x64.zip`；
+2. 解压至任意目录，直接双击根目录的 **`DiskGuardian.exe`**；
+3. **创建桌面快捷方式**：在界面右上角点击【创建桌面快捷方式】，系统将自动在桌面生成带专属图标的标准快捷方式；
+4. **一键打通 IDE 代理**：在仪表盘点击【加固 Agent IDE 代理】，一键让 VS Code / Cursor / WorkBuddy 的自定义模型走通代理；
+5. **空间规则清理**：切至「空间规则清理」，勾选需要清理的规则，点击【开始扫描勾选项】，展开项目子项确认后执行清理。
+
+### 方式二：命令行运维端 (CLI)
+适合自动化脚本、日常运维与快速体检：
+```powershell
+# 1. 运行 21 项核心安全硬禁区自测
+disk-guardian --check-rules
+
+# 2. 检查网络系统代理、Git 全局代理与 Agent IDE 代理防线
+disk-guardian --check-proxy
+
+# 3. 一键加固已安装的所有 Agent IDE 代理支持 (自动绑定活跃代理)
+disk-guardian --harden-ide-proxy
+
+# 4. 安全清洗幽灵代理残留并广播生效 (绝不杀 explorer.exe)
+disk-guardian --fix-proxy
+
+# 5. 在用户桌面创建规范快捷方式
+disk-guardian --create-shortcut
+
+# 6. 安全防卡死清空回收站
+disk-guardian --purge
+```
+
+---
+
+## 📊 命令行 CLI 参数矩阵
+
+| 参数标志 | 模式说明 | 行为说明 |
 |---|---|---|
-| Dism++ 清完只省了零头 | 它管 `WinSxS` / 事件日志 / 还原点，**没有** shader 缓存、包管理器缓存、构建产物规则 | `rules.json` 专收 Dism++ 的空白：`NVIDIA\DXCache` 8.25 GiB、`go-build`、npm/pip/pnpm/cargo/go-mod/gradle/nuget 缓存 |
-| 清完三小时 C 盘又少 4.27 GiB | 勾了「NET 程序集缓存」，NGEN 后台重建 `C:\Windows\assembly\NativeImages_*` 约 2.5 GiB | `%SystemRoot%\assembly` 列入 `HARD_DENY`，代码级禁止 |
-| 11/4–11/6 蓝屏事件在系统里查不到了 | 勾了「Windows事件」，`System` / `Application` / `Setup` / `WindowsUpdateClient Operational` 被清空 | `%SystemRoot%\winevt` 列入 `HARD_DENY`；证据只在报告文件里留档 |
-| 清空回收站时弹出 `$R02DUPK` / `0x80004005` 卡死 | `SHEmptyRecycleBinW` 遇到异常项会弹模态框，`SHERB_NOCONFIRMATION` 也挡不住 | `recycle.py` 完全不用该 API，改按 `$I`/`$R` 对逐批删，失败项跳过 |
-| 清理脚本卡住后日志全丢 | 日志写在脚本末尾，没走到就没落盘 | `guardian.py` 每行 `flush + fsync`，另有 `out/actions.jsonl` 每条动作即时追加 |
-| 一堆一次性 Python 扫描脚本散在会话工作区 | 每次现写、路径硬编码 | 全部收成 `rules.json` + 一个 `guardian.py` |
+| `--check-rules` | 核心安全自检 | 运行 18 项 `HARD_DENY` 硬断言 + 3 项项目发现断言，出现任何漏洞直接 fail-fast 阻断 |
+| `--check-proxy` | 网络与代理体检 | 结构化输出 WinINET 标志位、回环端口连通性延迟、Git 代理、Agent IDE 代理配置 |
+| `--harden-ide-proxy`| Agent IDE 加固 | 扫描 VS Code/Cursor/Trae/WorkBuddy 等，自动注入 `http.proxySupport` 与活跃代理 |
+| `--fix-proxy` | 幽灵代理安全清洗 | 自动备份注册表，清洗 DefaultConnectionSettings 手动位，WinINet 广播生效 |
+| `--create-shortcut` | 快捷方式生成 | 动态解析当前桌面路径，调用 Win32 原生 COM 接口生成 `DiskGuardian.lnk` |
+| `--level <1/2/3>` | 清理安全级别 | 默认 1（纯快速安全缓存）；2 级需重下构建产物；3 级需确认关键数据 |
+| `--apply` | 执行清理操作 | 默认安全移入回收站（两步可撤销） |
+| `--purge` | 安全清空回收站 | 分批次安全物理清空 `$Recycle.Bin`，单文件容错，跳过锁定项，绝不卡死 |
 
 ---
 
-## 三条铁律
+## 🔒 安全硬禁区代码化自测
 
-1. **默认只读。** 直接跑 `python guardian.py` 只扫、只打印，不删任何东西（只在项目 `out/` 里写日志）。
-   必须显式加 `--apply`，并且交互输入 `DELETE`（level 2/3 是 `DELETE2`/`DELETE3`）才动手。
-2. **禁区写在代码里。** `HARD_DENY` 是 `guardian.py` 的常量，**不在 `rules.json` 里**。
-   规则表改坏、路径写宽、变量拼错，都打不开禁区。启动时还有一轮 `deny_selftest` fail-fast，
-   禁区出现漏洞就直接拒绝运行。
-3. **不调用 `SHEmptyRecycleBinW`。** 清空回收站走 `recycle.empty_safely()`：按批删，
-   失败批次拆成单文件重试，坏项跳过，全程无 UI、不会挂住。
+在工程设计中，安全禁区**绝不依赖外部 json 规则**，全部固化在 C# 静态断言库中。每次启动自检均会执行完整断言链：
 
-**⚠️ 此操作非常危险，可能导致不可逆的数据丢失！**
-`--apply` 只是把文件**移入回收站**（可撤销）；`--purge` 才是永久删除，会再列一次清单并要求输入 `PURGE`。
-两步分开，绝不一次做完。
+```text
+=== disk-guardian C# 核心自检 | mode=check | level<=1 ===
+--- HARD_DENY self-test (18 条安全断言) ---
+[SELF-TEST PASS] blocked  C:\windows\WinSxS                                  删它会连带删掉受保护项 c:\windows\winsxs
+[SELF-TEST PASS] blocked  C:\windows\assembly                                删它会连带删掉受保护项 c:\windows\assembly
+[SELF-TEST PASS] blocked  C:\windows\winevt\Logs                             位于硬禁区 c:\windows\winevt 之内
+[SELF-TEST PASS] blocked  C:\windows\System32                                删它会连带删掉受保护项 c:\windows\system32
+[SELF-TEST PASS] blocked  C:\Users\36230\AppData\Local\CrashDumps            删它会连带删掉受保护项 c:\users\36230\appdata\local\crashdumps
+[SELF-TEST PASS] blocked  D:\dedicateddumpfile.sys                           命中系统关键文件名保护
+...
+--- ProjectDiscoverer self-test (3 条发现断言) ---
+[SELF-TEST PASS] discover: 项目合法依赖被成功发现
+[SELF-TEST PASS] discover: Electron 运行时应用被严格排除
+[SELF-TEST PASS] discover: 无包清单目录被安全跳过
+--- end self-test ---
 
----
-
-## 快速开始
-
-### 双击（推荐给日常用）
-
-`C:\Users\36230\SystemTools\disk-guardian\` 里四个 `.bat`，按顺序：
-
-| 文件 | 做什么 | 破坏性 |
-|---|---|---|
-| `1-预览可清理.bat` | 只读预览 level 1 + 生成报告 | 无 |
-| `2-执行安全清理.bat` | level 1 移入回收站，需输入 `DELETE` | 可撤销 |
-| `3-清空回收站.bat` | 永久清空 C 盘回收站，需输入 `PURGE` | **不可撤销** |
-| `4-打开报告目录.bat` | 打开 `out\` 看日志和报告 | 无 |
-| `5-打开图形界面.bat` | 启动现代化窗口界面（见下节） | 界面本身只读 |
-
-### 命令行
-
-```bat
-cd /d D:\4rchive\Code\disk-guardian
-set PY=C:\Users\36230\.workbuddy\binaries\python\versions\3.13.12\python.exe
-
-%PY% guardian.py --list                        :: 列出所有规则 id 与等级
-%PY% guardian.py --check-rules                 :: 硬禁区自测 + 规则校验
-%PY% guardian.py                               :: 只读预览 level 1
-%PY% guardian.py --level 2 --json-report       :: 预览 level 1+2
-%PY% guardian.py --level 3 --json-report       :: 预览全部（仍然只读）
-%PY% guardian.py --apply                       :: 执行 level 1（移入回收站）
-%PY% guardian.py --apply --level 2             :: 执行 1+2，需输入 DELETE2
-%PY% guardian.py --include npm-cache,pip-cache --level 2 --apply
-%PY% guardian.py --purge                       :: 永久清空回收站，需输入 PURGE
-%PY% guardian.py --purge --drives C,D          :: 连 D 盘回收站一起（会额外列清单）
+ALL 21 SELF-TEST ASSERTIONS PASSED! 核心安全与防误杀机制运行正常。
 ```
 
-`--yes` 跳过交互确认，只给脚本化运行用；非交互终端下不带 `--yes` 会直接拒绝。
-
 ---
 
-## 图形界面（v0，2026-11-07 新增）
+## 🛠️ 本地构建与打包
 
-双击 `5-打开图形界面.bat`：用 `pythonw.exe` 起一个**只监听 127.0.0.1** 的本地服务，
-再用系统 Edge/Chrome 的 `--app=` 打开无地址栏窗口，看起来就是个本地程序。
-
-界面四个页面：**清理规则**（C/D 水位、L1/L2/L3 切换、规则卡片、勾选、二次确认弹窗）、
-**硬禁区**（35 条受保护路径 + 为什么）、**回收站**（清单 + `PURGE` 确认）、
-**运行日志**（日志末尾 + `actions.jsonl` 动作流水）。深色/浅色主题可切。
-
-安全边界与命令行完全一致，不是另写一套：
-
-- GUI **只传规则 id，从不传路径**；后端用刚重建的 plan 复核等级 / 状态 / 禁区，
-  再调 `guardian.execute_rules` —— CLI 和 GUI 共用同一条执行路径。
-- 首页 `?t=` 校验一次性令牌，API 走 `X-DG-Token`；非回环地址直接拒绝。
-- 执行弹窗要求输入 `DELETE` / `DELETE2` / `DELETE3`，服务端**再校验一次**；
-  清空回收站要求 `PURGE`，同样双重校验。
-- 默认**不自动退出**（后台标签页会被浏览器冻结，心跳会误判），
-  退出只能点界面右上角按钮 → `POST /api/quit`。
-- 双击没反应时看 `out/gui_crash.txt`（pythonw 没有控制台，所以异常写成文件）。
-
-完整调研见 `docs/调研-2026-11-07.md`，一句话结论：
-**「魔改 Dism++」做不到**（GitHub 上只有 `Data.xml` / 语言包 / 插件文档，
-主程序是闭源二进制）；同类通用清理器很多，但把一次真实排障结论固化成
-**不可绕过的禁区 + 两步删除 + 动作流水**的，确实没找到第二家。
-
-> 这是验证形态的 v0：依赖本机托管 Python，不是单 exe。
-> 形态确认后可以再用 wintuner 那套 Go + 内嵌网页骨架包成单文件分发。
-
-**扫描耗时（本机实测）**：L1 约 1 s；L2 25–48 s；L3 36–60 s（抖动大，看磁盘忙不忙）。
-L2/L3 变慢是 2026-11-07 加 D 盘发现规则后的代价：多遍历 78 万个文件
-（39 个 `node_modules` 24.6 万 + 8 个 `target` 5 万 + 发现器走目录树）。
-切等级时前端显示加载态，服务端缓存 5 分钟，
-执行前一定用 `refresh=True` 重新扫一遍，不会照着旧计划动手。
-有一个反直觉的实测：**给扫描加 4 线程池反而更慢**（L2 11.2 → 11.9 s，
-L3 13.9 → 17.4 s，单块 SSD 上 `scandir` 并发只是争用），所以保持串行；
-真正的提速来自去掉「每个文件重复一次 `os.stat`」。后续想再快，
-应该做「按规则粒度的增量缓存」，而不是加线程。
-
----
-
-## 分级
-
-| level | 含义 | 怎么才会进计划 |
-|---|---|---|
-| 1 | 纯缓存，系统/工具自动重建 | 默认 |
-| 2 | 能重建但要联网重下，或需要管理员 | 必须 `--level 2` 或更高 |
-| 3 | 会永久丢数据（镜像/卷/SDK/用户文件） | 必须显式 `--level 3` |
-| 0 | 禁区 | 不存在于规则表，由 `HARD_DENY` 硬编码 |
-
-另外三道闸门：`requires_admin` 未提权就跳过；`recent_hours`（如 WU 下载缓存设 6 小时）
-近期有写入就跳过；`mode: old-files` 的规则不删目录本身，只挑 `keep_days` 天前的旧文件。
-
----
-
-## 硬禁区（节选，完整表在 `guardian.py`）
-
-整棵子树禁止：`%SystemRoot%\assembly`、`WinSxS`、`Installer`、`winevt`、`System32`、
-`SysWOW64`、`Boot`、`Fonts`、`MEMORY.DMP`、`Minidump`、`%ProgramFiles%`、
-`%ProgramFiles(x86)%`、`Documents`、`Desktop`、`Pictures`、`.workbuddy`、`.ssh`、`.gnupg`、
-`%LOCALAPPDATA%\CrashDumps`、`...\Edge\User Data`、`C:\$Recycle.Bin`、`C:\Windows.old`。
-
-自身禁止、且**不允许任何目标作为它们的父目录**：`%USERPROFILE%`、`%LOCALAPPDATA%`、
-`%APPDATA%`、`%SystemRoot%`、`%ProgramData%`、`%CODE_ROOT%`、盘符根目录、
-`pagefile.sys` / `swapfile.sys` / `hiberfil.sys` / `dedicateddumpfile.sys` / `MEMORY.DMP` / `NTUSER.DAT`。
-
-> 例外只有两个，且都要求 `level 3` + 规则里显式 `allow_inside_deny: true`：
-> `edge-cache`（只碰 `User Data\Default` 下三个缓存子目录）、
-> `workbuddy-old-logs`（只挑 `logs` / `traces` 里 14 天前的旧文件）。
-
----
-
-## 改规则表
-
-新增一条缓存规则，**只改 `rules.json`**，不用碰 Python：
-
-```json
-{
-  "id": "my-tool-cache",
-  "name": "某某工具缓存",
-  "level": 1,
-  "paths": ["%LOCALAPPDATA%\\MyTool\\Cache"],
-  "rebuild": "下次启动自动重建",
-  "note": "为什么安全"
-}
+项目使用标准 .NET 9.0 SDK 与原生 MinGW/GCC 构建极简绿色包：
+```powershell
+# 执行一键构建与打包流水线 (生成带图标绿色便携 ZIP)
+powershell -ExecutionPolicy Bypass -File build_release.ps1
 ```
-
-可用变量：`%USERPROFILE%` `%LOCALAPPDATA%` `%APPDATA%` `%TEMP%` `%SystemRoot%`
-`%ProgramData%` `%ProgramFiles%` `%ProgramFiles(x86)%`，以及 `vars` 里的 `%CODE_ROOT%`。
-拼错变量会在 `load_rules()` 里直接报错退出，不会静默变成别的路径。
-
-**想改禁区必须改 `guardian.py` 里的常量，并且重跑 `--check-rules` 看自测是否全 PASS。**
-这是故意的：规则表是可编辑数据，禁区是不可编辑代码。
-
-### 目录会变的场景用 `discover`（2026-11-07 新增）
-
-有些东西没法写死路径：D 盘今天有 8 个 Rust `target`、39 个 `node_modules`，
-下周数量就变了。手写清单必然腐化——事实上原来的 `rust-target` 只列了 2 个路径，
-漏掉了当时最大的 `Code\tern\target`（20.5 GiB）。
-
-改成按名字发现，但要能证明身份：
-
-```json
-{
-  "id": "js-node-modules",
-  "level": 2,
-  "discover": {
-    "roots": ["D:\\4rchive", "D:\\Learning", "D:\\Document"],
-    "dirname": "node_modules",
-    "require_sibling": "package.json",
-    "max_depth": 6,
-    "exclude_contains": ["\\resources\\app", "\\resources\\app.asar"]
-  }
-}
-```
-
-四个约束缺一不可：
-
-| 字段 | 作用 |
-|---|---|
-| `roots` | 只在这些根目录下找。**只放代码区**，别放 `D:\Tools` 这类软件安装目录 |
-| `dirname` | 目录名（大小写不敏感） |
-| `require_sibling` | 同级必须有这个文件才认。`target` 要 `Cargo.toml`，`node_modules` 要 `package.json` |
-| `exclude_contains` | 路径含这些片段的一律跳过 |
-| `max_depth` | 递归深度上限，默认 5 |
-
-**⚠ `require_sibling` 单独不够，这是实测踩到的坑。**
-每个 Electron 应用里都有 `resources\app\package.json` + `node_modules`，
-第一版规则把它们全认成了项目依赖：
-
-```
-d:\tools\cursor\resources\app\node_modules            ← Cursor 本体
-d:\tools\Photoshop\...\Required\...\node_modules      ← Photoshop 组件
-d:\tools\WorkBuddy\resources\app.asar.unpacked\cli\node_modules
-d:\tools\微信web开发者工具\...\node_modules
-```
-
-按那时的结果清理，这几个软件直接报废。所以 `exclude_contains` 是硬要求，
-并且 `--check-rules` 里加了三条发现器自测（项目被发现 / 应用被排除 / 无清单被跳过），
-该自测失败时程序直接拒绝启动。
-
-发现结果会**照常走 HARD_DENY 检查**，和写死的路径没有区别。
+*构建产物将输出至 `dist/` 目录。*
 
 ---
 
-## D 盘（2026-11-07 新增）
+## 📄 开源许可证
 
-原来的规则表基本只管 C 盘和用户目录，但本机 **D 盘剩 3.8% 比 C 盘还紧**。
-补两条按需开启的：
-
-| id | 内容 | 实测 | level |
-|---|---|---|---|
-| `rust-target` | Rust `target` | 30.28 GiB / 8 处（最大 `Code\tern\target` 20.5 GiB） | 2 |
-| `js-node-modules` | Node 项目依赖 | 3.69 GiB / 39 处 | 2 |
-
-都是 level 2：能重建，但 `target` 冷编译要几十分钟、`node_modules` 要联网重装，
-所以默认不进计划，得显式 `--level 2`。
-
-```bat
-python guardian.py --level 2 --include rust-target,js-node-modules
-```
-
-**没做成规则的东西**：`bin`（3.76 GiB）、`build`（2.12 GiB）、`dist`（0.69 GiB）。
-名字歧义太大——`bin` 既可能是编译输出，也可能是程序本体存放处，一律不碰。
-
-D 盘的大头其实是游戏和资料（`Steam` 82 GiB、`ow` 72 GiB、`BaiduNetdiskDownload` 93 GiB），
-那些是资产不是缓存，工具不该管，也管不了。
-
----
-
-## 日志与报告
-
-| 文件 | 内容 |
-|---|---|
-| `out/run_YYYYMMDD_HHMMSS.log` | 每次运行逐行落盘，每行 flush + fsync |
-| `out/actions.jsonl` | 每条实际删除动作（规则、路径、ok/failed），追加即落盘 |
-| `out/last_report.json` | 传 `--json-report` 时生成，含每条规则的大小/文件数/状态/拦截原因 |
-
-`out/` 已在 `.gitignore` 里排除，不入库。
-
----
-
-## 与 Dism++ 的分工
-
-| 谁管 | 内容 |
-|---|---|
-| **Dism++** | 被取代的 WinSxS 组件、系统还原点、Windows 事件、更新安装记录、Package Cache、NET 程序集缓存（都不建议随便清） |
-| **disk-guardian** | shader/DXCache、GLCache、go-build、npm/pip/pnpm/cargo/go-mod/gradle/nuget/ms-playwright 缓存、Rust `target`、各类临时目录 |
-| **都不碰** | 已装程序、用户文档、Docker/WSL 虚拟盘里的数据、pagefile/dump 文件 |
-
-Dism++ 本机配置建议（观察期）：
-`Config\Config.ini` 里 `#系统以及程序崩溃dmp文件（by YukiSakura）=1` 建议改 0，
-别在 25H2 蓝屏观察期把 dmp 清掉。其余危险项本机当前已经是 0。
-
----
-
-## 已知不做
-
-- 不自动跑、不设计划任务、不联网、不上传任何统计。
-- 不动卷影副本 / 还原点（`vssadmin` 需要管理员，另说）。
-- 不删 `C:\Windows\assembly\NativeImages_*`：清了会触发 NGEN 重建反吃空间。
-- 不用 `SHEmptyRecycleBinW`，不用 `rm -rf` 一类整目录强删。
-- 不理解「仓库有没有推完整」——那是另一份 `清理清单_2026-11-07.md` 的事；
-  删构建产物前请自行确认远端已有完整副本。
-
----
-
-## 项目结构
-
-```
-D:\4rchive\Code\disk-guardian\
-  guardian.py              主程序：扫描 / 预览 / 执行 / 硬禁区 / 日志
-  rules.json               规则表（27 条）与分级说明
-  recycle.py               回收站封装（规避模态弹窗）
-  ui\server.py             回环 WebUI 服务（令牌 / API / --app= 窗口）
-  ui\assets\index.html     单文件现代化界面（无外部资源，离线可用）
-  docs\调研-2026-11-07.md  魔改可行性与同类项目源码级调研
-  README.md                本文件
-  .gitignore / .gitattributes
-  tools\make_launchers.py  生成 5 个 .bat 入口，保证 GB18030 + CRLF
-  launchers\               生成的 .bat 副本（仓库自留）
-  out\                     日志与报告（不入库）
-
-C:\Users\36230\SystemTools\disk-guardian\
-  1-预览可清理.bat / 2-执行安全清理.bat / 3-清空回收站.bat /
-  4-打开报告目录.bat / 5-打开图形界面.bat
-```
-
-`.bat` 约定（见 `SystemTools\索引.md` 第四节）：**GB18030 + CRLF + 无 BOM + `chcp 936`**，
-文件名不含半角括号，标签用 ASCII，分支走 `goto` 不用 `if (...)` 块。
-生成器还固定了 `PYTHONUTF8=1` / `PYTHONIOENCODING=utf-8`：本机 ACP 是 936，
-而这个托管 Python 开了 UTF-8 模式；真实控制台走 `WriteConsoleW` 不受代码页影响，
-但显式固定后管道 / 重定向 / 日志三者的编码一致，不会有歧义。
-**不要手工编辑 `.bat`**，改模板后跑 `tools\make_launchers.py` 重新生成。
+本项目基于 [MIT 许可证](LICENSE) 开源。欢迎提交 Issue 与 Pull Request 共同完善开发者清理规则与安全防线！

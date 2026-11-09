@@ -52,7 +52,8 @@ public static class ShortcutManager
             shortcut.WorkingDirectory = Path.GetDirectoryName(targetExe);
             shortcut.WindowStyle = 1;
             shortcut.Description = "DiskGuardian - Windows 原生系统空间与网络守护者";
-            shortcut.IconLocation = $"{targetExe}, 0";
+            var iconPath = Path.Combine(Path.GetDirectoryName(targetExe) ?? baseDir, "disk-guardian.ico");
+            shortcut.IconLocation = File.Exists(iconPath) ? $"{iconPath}, 0" : $"{targetExe}, 0";
             shortcut.Save();
 
             return (true, shortcutPath, null);

@@ -45,6 +45,7 @@
                         </StackPanel>
 
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <Button Content="加固 Agent IDE 代理" Click="HardenIdeProxy_Click"/>
                             <Button Content="创建桌面快捷方式" Click="CreateShortcut_Click"/>
                             <Button Content="重新体检" Click="RefreshProxy_Click"/>
                             <Button x:Name="FixProxyButton" Content="一键安全修复" Click="FixProxy_Click" 
@@ -141,6 +142,9 @@
                                 <TextBlock Grid.Row="5" Grid.Column="0" x:Name="DetailAppHardeningLabel" Text="已识别应用安全隔离:" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 <TextBlock x:Name="DetailAppHardeningText" Grid.Row="5" Grid.Column="1" Text="--" FontSize="12"/>
                             </Grid>
+
+                            <TextBlock Text="已识别 Agent IDE 代理防线 (VS Code / Cursor / WorkBuddy 等):" FontSize="12" FontWeight="SemiBold" Margin="0,6,0,2"/>
+                            <TextBlock x:Name="DetailIdeListText" Text="检测中..." FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/>
 
                             <TextBlock Text="取证分析日志:" FontSize="12" FontWeight="SemiBold" Margin="0,4,0,0"/>
                             <TextBlock x:Name="ProxyDetailLogsText" Text="无异常日志" 

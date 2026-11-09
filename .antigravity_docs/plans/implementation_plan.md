@@ -1,60 +1,57 @@
-# 实施计划 - 规则多项目子选项细化与 Rust/Node 精准勾选清理
+# 实施计划 - Agent IDE 代理防线、专属图标与工程规范化 (对齐 wbmux)
 
 ## 1. 现状感知与问题根因 (Context)
-用户在实机使用 Rust target 扫描时反馈两个关键问题：
-1. **无法针对具体项目选择性清理 (核心诉求)**：
-   - 现有的“Rust 构建产物 (target)”和“Node 项目依赖 (node_modules)”作为整体单一选项呈现；
-   - 扫描发现 8 处 Rust target（共 30.28 GiB，如 tern/target 占 20.50 GiB、zerogravity-src 占 5.79 GiB），或者 80 处 node_modules；
-   - 用户无法单独保留当前正在开发的项目 target，而必须“要么全删要么全留”，容易导致误删正在开发中的编译缓存。
-2. **UI 文本重叠严重 (视觉 BUG)**：
-   - `rules.json` 中 `size_hint` 包含了超长中文注释（如 `30.28 GiB（8 处；最大 tern/target 20.50 GiB、zerogravity-src 5.79 GiB）`）；
-   - 前端在未扫描状态下直接将这串长文本塞入右侧 `SizeDisplay`，且未做列宽弹性限制与文本截断，导致左侧标题与右侧容量发生严重视觉重叠撞车。
+1. **Agent IDE 自定义模型代理死锁是行业通用痛点**：
+   - 现代 AI 编码客户端（VS Code, Cursor, Trae, WorkBuddy, ZCode, Windsurf 等）底层均为 VS Code / Electron 架构；
+   - 它们决定网络外联的核心依据是 `http.proxySupport` 与 `http.proxy`；缺省时默认被判定为 `none`（直连），导致自定义模型（DeepSeek, Claude, OpenAI, TokenHarbor, TokenRouter 等）强行走直连而惨遭断网报“连接失败”；
+   - 用户明确提出：应将此逻辑通用化，覆盖所有主流 Agent IDE，提供一站式体检与一键加固。
+2. **应用缺少专属高质量图标 (.ico)**：
+   - 启动器与 WinUI 3 应用目前未嵌入专属定制的 `.ico` 图标资源，在文件夹与桌面快捷方式中呈现默认系统图标。
+3. **工程规范度需对齐工作区 `wbmux` 工业级开源标准**：
+   - 根目录 README 仍为早期 Python 脚本时代陈旧内容，缺少 LICENSE、中英文双语高品质文档、ASCII Art Logo、架构拓扑与完整的生态接入说明。
 
 ---
 
 ## 2. 详细改造方案 (Thought)
 
-### 模块 A：底层数据与引擎支持子项目明细与精准执行
-- **`CleanerEngine.cs` 数据结构升级**：
-  - 新增 `SubPathItem` 记录类：
-    - `Path`: 项目完整绝对路径；
-    - `Name`: 友好项目展示名（如 `tern/target`）；
-    - `SizeBytes`: 单独项目的实际字节数；
-    - `FilesCount`: 单独项目的文件数量；
-    - `IsSelected`: 单独项目的勾选状态（默认 true）。
-  - `PlanRow` 增加 `List<SubPathItem> SubItems`。
-- **扫描逻辑升级 (`ScanRule`)**：
-  - 扫描遍历 `existing` 路径时，单独记录每个路径的 `SizeBytes` 与 `FilesCount`；
-  - 按照体积从大到小降序排列（让占用最大的陈旧项目排在最前面，一目了然）。
-- **执行逻辑升级 (`ExecutePlan`)**：
-  - 如果规则行存在 `SubItems`，只对 `SubItems.Where(s => s.IsSelected)` 的物理路径执行清理；
-  - 未勾选的项目物理路径绝对不碰，坚决保留！
+### 模块 A：主流 Agent IDE 代理防线 (ProxyDoctor 通用化)
+- **支持扫描的主流 IDE 列表**：
+  - VS Code (`%APPDATA%\Code\User\settings.json`)
+  - VS Code Insiders (`%APPDATA%\Code - Insiders\User\settings.json`)
+  - Cursor (`%APPDATA%\Cursor\User\settings.json`)
+  - Trae (`%APPDATA%\Trae\User\settings.json`)
+  - WorkBuddy (`%USERPROFILE%\.workbuddy\settings.json`)
+  - ZCode (`%APPDATA%\zcode\User\settings.json` / `%USERPROFILE%\.zcode\settings.json`)
+- **数据结构扩展 (`IdeProxyStatus`)**：
+  - `IdeName`, `SettingsPath`, `Installed`, `ProxySupport`, `HttpProxy`, `StatusDisplay`, `IsVulnerable`。
+- **体检与加固逻辑 (`ProxyDoctor.cs`)**：
+  - 启动时自动扫描已安装的 IDE；
+  - 判定是否存在“已开系统代理但 IDE 缺配置导致模型断网”的弱点；
+  - 一键加固：支持自动为所有受影响的 IDE 安全写入 `"http.proxySupport": "on"` 与 `"http.proxy": "http://127.0.0.1:7890"`（带自动备份）；
+  - UI 界面在取证面板展示【已识别 Agent IDE 防线】，支持一键修复。
 
-### 模块 B：ViewModel 层 (`CleanerRuleRow.cs` 与 `CleanerSubItemRow.cs`)
-- **消除文本重叠**：
-  - 构造函数初始化时，右侧 `SizeDisplay` 在未扫描状态下固定为简洁的 `"未扫描"`，彻底杜绝括号长文本塞入右侧引起的重叠。
-- **子项 ViewModel 与联动计算**：
-  - 新增 `CleanerSubItemRow`：包含 `Name`, `Path`, `SizeBytes`, `SizeHuman`, `IsSelected`，双向绑定；
-  - 父级 `CleanerRuleRow` 包含 `ObservableCollection<CleanerSubItemRow> SubItemRows`；
-  - 子项勾选/取消勾选时，动态重新计算父级当前选中的 `SizeBytes`，并触发页面总可释放体积更新；
-  - 增加 `HasSubItems`（当子项目数量 > 1 时为 true）与 `IsExpanded` 控制折叠展开。
+### 模块 B：专属高清应用图标设计与资源嵌入
+- **制作 `disk-guardian.ico`**：
+  - 纯程序化生成符合 Windows PE 规范的标准 `.ico`（包含 256x256, 128x128, 64x64, 48x48, 32x32, 16x16）；
+  - 视觉语义：蓝绿色科技盾牌 + 极速存储守护盘；
+- **资源编译嵌入**：
+  - 嵌入 `DiskGuardian.UI.csproj` 与 `DiskGuardian.Launcher.csproj`；
+  - 在 `src/launcher.rc` 中配置 `MAINICON`，通过 `windres` 编译进 Win32 C 启动器 `DiskGuardian.exe`；
+  - `ShortcutManager.cs` 确保快捷方式正确显示该图标。
 
-### 模块 C：WinUI 3 界面交互升级 (`CleanerPage.xaml` / `.cs`)
-- **列宽与文本重叠防护**：
-  - 给标题与容量区域配置合理的 Grid 比例与弹性边距，增加 `TextTrimming="CharacterEllipsis"`，彻底杜绝重叠。
-- **项目子清单折叠/展开区域**：
-  - 在卡片内提供展开入口（例如：`展开查看 8 处项目明细 (按占用从大到小排序)`）；
-  - 展开后展示嵌套项目列表：
-    - 每个子项目独立 CheckBox；
-    - 醒目显示项目名（如 `tern/target`）与完整物理路径；
-    - 独立容量大号加粗展示（如 `20.50 GiB`）；
-    - 提供【定位文件夹】按钮（点击直接调用资源管理器打开该项目所在位置，方便确认）。
+### 模块 C：项目工程规范化 (对齐 wbmux)
+- **开源许可证**：新增标准 MIT `LICENSE`；
+- **中英文标准开源文档**：
+  - `README.md`：居中 ASCII Art Logo、科技感徽章、系统架构拓扑 Mermaid、三大核心守护特性（空间治理、Agent IDE 代理防线、防误杀硬禁区）、CLI 命令矩阵；
+  - `README_EN.md`：完整对齐的英文版标准开源文档；
+- **代码与打包脚本完善**：
+  - 更新 `build_release.ps1` 包含图标打包与 Release 生成。
 
 ---
 
 ## 3. 验证与自测标准 (Verification)
 1. 21 项安全硬禁区自测 100% PASS。
-2. 扫描包含多项目的规则（如 Rust target 或 node_modules），可以完整列出每个项目的独立体积。
-3. 单独取消勾选某个子项目（如取消勾选 zerogravity-src），总可释放体积动态扣除对应大小。
-4. 执行清理后，已取消勾选的项目文件完好无损，被勾选的项目被安全清理。
-5. 界面不再发生任何文字重叠与挤压。
+2. `ProxyDoctor` 准确识别本机已安装的 Agent IDE（VS Code、Trae、WorkBuddy、Cursor 等）的代理设置状态。
+3. 一键加固后，对应 IDE 的 `settings.json` 正确注入 `"http.proxySupport": "on"`，自定义模型测试畅通。
+4. 生成的 `DiskGuardian.exe` 与桌面快捷方式完美呈现专属应用图标。
+5. 解决方案编译 0 警告、0 错误。

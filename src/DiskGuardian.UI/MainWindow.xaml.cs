@@ -19,6 +19,21 @@ public sealed partial class MainWindow : Window
             this.SetWindowSize(1200, 800);
             this.ExtendsContentIntoTitleBar = true;
             this.SetTitleBar(AppTitleBar);
+
+            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            var icoCandidates = new[]
+            {
+                System.IO.Path.Combine(baseDir, "disk-guardian.ico"),
+                System.IO.Path.Combine(baseDir, "..", "disk-guardian.ico")
+            };
+            foreach (var ico in icoCandidates)
+            {
+                if (System.IO.File.Exists(ico))
+                {
+                    this.SetIcon(ico);
+                    break;
+                }
+            }
         }
         catch { }
 

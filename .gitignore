@@ -27,4 +27,5 @@ publish/
 .vs/
 *.user
 *.suo
+*.res
 

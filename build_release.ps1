@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 
 Write-Host "=== DiskGuardian 一键构建与极简打包流水线 ===" -ForegroundColor Cyan
 
@@ -31,8 +31,13 @@ if (Get-Command gcc -ErrorAction SilentlyContinue) {
 }
 
 if ($gccPath -and (Test-Path "src/launcher.c")) {
-    Write-Host "使用原生 GCC 编译零依赖极简启动器..." -ForegroundColor Cyan
-    & $gccPath -O2 src/launcher.c -o "$winuiPkg/DiskGuardian.exe" -mwindows -s
+    Write-Host "使用原生 GCC + windres 编译零依赖带图标启动器..." -ForegroundColor Cyan
+    if (Get-Command windres -ErrorAction SilentlyContinue) {
+        & windres -I. src/launcher.rc -O coff -o "$distDir/launcher.res"
+        & $gccPath -O2 src/launcher.c "$distDir/launcher.res" -o "$winuiPkg/DiskGuardian.exe" -mwindows -s
+    } else {
+        & $gccPath -O2 src/launcher.c -o "$winuiPkg/DiskGuardian.exe" -mwindows -s
+    }
 } else {
     Write-Host "使用 .NET SingleFile 编译启动器..." -ForegroundColor Cyan
     $launcherOut = "$distDir/launcher-temp"
@@ -41,9 +46,13 @@ if ($gccPath -and (Test-Path "src/launcher.c")) {
     Remove-Item -Recurse -Force $launcherOut
 }
 
-# 复制配置文件与生成说明
+# 复制配置文件、专属图标与生成说明
 Copy-Item rules.json $winuiPkg/ -Force
 Copy-Item rules.json "$winuiPkg/app/" -Force
+if (Test-Path disk-guardian.ico) {
+    Copy-Item disk-guardian.ico $winuiPkg/ -Force
+    Copy-Item disk-guardian.ico "$winuiPkg/app/" -Force
+}
 
 @"
 ========================================================================

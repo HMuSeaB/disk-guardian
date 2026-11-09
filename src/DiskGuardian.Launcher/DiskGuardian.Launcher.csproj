@@ -10,5 +10,6 @@
     <SelfContained>false</SelfContained>
     <AssemblyName>DiskGuardian</AssemblyName>
     <RootNamespace>DiskGuardian.Launcher</RootNamespace>
+    <ApplicationIcon>disk-guardian.ico</ApplicationIcon>
   </PropertyGroup>
 </Project>

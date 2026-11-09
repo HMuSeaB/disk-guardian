@@ -110,6 +110,16 @@ public partial class DashboardPage : Page
                 DetailAppHardeningText.Text = report.AppHardeningDisplay;
             }
 
+            if (report.IdeList.Count > 0)
+            {
+                var ideLines = report.IdeList.Select(i => $"• [{i.Name}] {i.StatusDisplay}\n  路径: {i.SettingsPath}");
+                DetailIdeListText.Text = string.Join("\n", ideLines);
+            }
+            else
+            {
+                DetailIdeListText.Text = "本机未检测到 VS Code / Cursor / Trae 等 Agent IDE 默认配置目录。";
+            }
+
             if (report.Details.Count > 0)
             {
                 ProxyDetailLogsText.Text = "• " + string.Join("\n• ", report.Details);
@@ -123,6 +133,32 @@ public partial class DashboardPage : Page
         {
             ProxySummaryText.Text = $"体检异常: {ex.Message}";
         }
+    }
+
+    private async void HardenIdeProxy_Click(object sender, RoutedEventArgs e)
+    {
+        var confirm = new ContentDialog
+        {
+            Title = "加固主流 Agent IDE 代理防线",
+            Content = "将为您自动探测本机已安装的 VS Code, Cursor, Trae, WorkBuddy, Windsurf 等 IDE，安全注入：\n\n1. http.proxySupport: \"on\"\n2. http.proxy: 绑定当前活跃代理 (如 127.0.0.1:7890)\n\n解决自定义海外模型（如 DeepSeek、Claude、OpenAI、TokenHarbor 等）因缺少代理设置而走直连断网的问题。\n原配置文件将自动生成 .bak 备份。\n\n是否立即加固？",
+            PrimaryButtonText = "立即加固",
+            CloseButtonText = "取消",
+            XamlRoot = this.XamlRoot
+        };
+
+        var result = await confirm.ShowAsync();
+        if (result != ContentDialogResult.Primary) return;
+
+        var (count, logs) = await Task.Run(() => ProxyDoctor.HardenAllIdeProxies());
+        var tip = new ContentDialog
+        {
+            Title = "加固完成",
+            Content = $"已成功加固 {count} 款 Agent IDE：\n\n✓ " + string.Join("\n✓ ", logs) + "\n\n重启对应 IDE 后，自定义模型即可顺畅连通！",
+            CloseButtonText = "确定",
+            XamlRoot = this.XamlRoot
+        };
+        await tip.ShowAsync();
+        await RefreshProxyStatusAsync();
     }
 
     private async void CreateShortcut_Click(object sender, RoutedEventArgs e)

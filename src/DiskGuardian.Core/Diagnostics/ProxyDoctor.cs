@@ -10,6 +10,16 @@ using Microsoft.Win32;
 
 namespace DiskGuardian.Core.Diagnostics;
 
+public sealed record IdeProxyDiagnosis(
+    string Name,
+    string SettingsPath,
+    bool Installed,
+    string ProxySupport,
+    string HttpProxy,
+    bool HasExplicitProxy,
+    string StatusDisplay,
+    bool NeedsProxyHarden);
+
 public sealed record ProxyDiagnosisResult(
     bool HasAnomaly,
     bool InconsistentFlags,
@@ -35,7 +45,8 @@ public sealed record ProxyDiagnosisResult(
     string GitStatusDisplay,
     string AppHardeningDisplay,
     string ToolchainStatusDisplay,
-    bool WorkBuddyDetected);
+    bool WorkBuddyDetected,
+    List<IdeProxyDiagnosis> IdeList);
 
 public sealed record ProxyRepairResult(
     bool Succeeded,
@@ -120,6 +131,7 @@ public static class ProxyDoctor
 
         // 4. 死端口探测 (针对 127.0.0.1 / localhost 回环代理)
         bool isDeadPort = false;
+        bool isPortListening = false;
         int? parsedPort = null;
         string parsedHost = "";
         string portStatusDisplay;
@@ -134,6 +146,7 @@ public static class ProxyDoctor
             if (port.HasValue && IsLoopbackHost(host))
             {
                 var (isListening, latency) = TestPort(host, port.Value);
+                isPortListening = isListening;
                 portLatencyMs = latency;
 
                 if (!isListening)
@@ -264,43 +277,26 @@ public static class ProxyDoctor
             gitStatusDisplay = "读取异常";
         }
 
-        // 8. 已识别下游工具链防线检查 (如 WorkBuddy 等)
-        bool workBuddyDetected = false;
-        bool workBuddyVulnerable = false;
-        string wbStatusDisplay;
+        // 8. 主流 Agent IDE 与开发者工具链代理防线体检 (VS Code, Cursor, Windsurf, Trae, WorkBuddy, ZCode)
+        var ideList = DetectAgentIdes(parsedHost, parsedPort, isPortListening, details);
+        bool hasIdeVulnerability = ideList.Any(i => i.NeedsProxyHarden);
+        bool workBuddyDetected = ideList.Any(i => i.Name == "WorkBuddy");
+        bool workBuddyVulnerable = ideList.Any(i => i.Name == "WorkBuddy" && i.NeedsProxyHarden);
+        string wbStatusDisplay = ideList.FirstOrDefault(i => i.Name == "WorkBuddy")?.StatusDisplay ?? "未安装 (无需加固)";
+
         string appHardeningDisplay;
-        try
+        if (ideList.Count == 0)
         {
-            var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            var wbSettings = Path.Combine(userProfile, ".workbuddy", "settings.json");
-            if (File.Exists(wbSettings))
-            {
-                workBuddyDetected = true;
-                var json = File.ReadAllText(wbSettings);
-                using var doc = JsonDocument.Parse(json);
-                if (doc.RootElement.TryGetProperty("mode", out var modeProp) && modeProp.GetString() == "none")
-                {
-                    wbStatusDisplay = "🟢 已开启直连隔离 (mode: none)";
-                    appHardeningDisplay = "🟢 WorkBuddy 已隔离保护";
-                }
-                else
-                {
-                    workBuddyVulnerable = true;
-                    wbStatusDisplay = "⚠️ 易感 (未设置 mode: none)";
-                    appHardeningDisplay = "⚠️ WorkBuddy 建议开启直连隔离";
-                    details.Add("[应用隔离建议] 检测到已安装 WorkBuddy，建议开启 mode: none 隔离，避免系统代理残留时被带偏。");
-                }
-            }
-            else
-            {
-                wbStatusDisplay = "未安装 (无需加固)";
-                appHardeningDisplay = "纯净 (未安装易感应用)";
-            }
+            appHardeningDisplay = "未发现已安装的 Agent IDE";
         }
-        catch
+        else if (hasIdeVulnerability)
         {
-            wbStatusDisplay = "检测异常";
-            appHardeningDisplay = "检测异常";
+            int vulnCnt = ideList.Count(i => i.NeedsProxyHarden);
+            appHardeningDisplay = $"⚠️ {vulnCnt} 款 IDE 缺少代理支持 (自定义模型将断网)";
+        }
+        else
+        {
+            appHardeningDisplay = $"🟢 全部 {ideList.Count} 款 Agent IDE 配置健康";
         }
 
         // 综合下游工具链状态
@@ -309,9 +305,9 @@ public static class ProxyDoctor
         {
             toolchainStatusDisplay = "🔴 检测到下游死端口污染";
         }
-        else if (workBuddyVulnerable)
+        else if (hasIdeVulnerability)
         {
-            toolchainStatusDisplay = "🟡 良好 (存在可选应用加固项)";
+            toolchainStatusDisplay = "🟡 良好 (存在 Agent IDE 代理加固项)";
         }
         else
         {
@@ -368,7 +364,8 @@ public static class ProxyDoctor
             GitStatusDisplay: gitStatusDisplay,
             AppHardeningDisplay: appHardeningDisplay,
             ToolchainStatusDisplay: toolchainStatusDisplay,
-            WorkBuddyDetected: workBuddyDetected);
+            WorkBuddyDetected: workBuddyDetected,
+            IdeList: ideList);
     }
 
     private static string InterpretBinaryFlag(byte flag)
@@ -456,28 +453,20 @@ public static class ProxyDoctor
                 actions.Add($"清理用户环境变量跳过: {ex.Message}");
             }
 
-            // 步骤 5: 加固 WorkBuddy 配置 (注入 "mode": "none")
+            // 步骤 5: 加固主流 Agent IDE 与开发工具代理防线 (VS Code, Cursor, Trae, WorkBuddy, Windsurf 等)
             if (hardenWorkBuddy)
             {
                 try
                 {
-                    var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                    var wbSettings = Path.Combine(userProfile, ".workbuddy", "settings.json");
-                    if (File.Exists(wbSettings))
+                    var (ideCount, ideLogs) = HardenAllIdeProxies();
+                    foreach (var l in ideLogs)
                     {
-                        var json = File.ReadAllText(wbSettings);
-                        var node = JsonNode.Parse(json);
-                        if (node is JsonObject obj)
-                        {
-                            obj["mode"] = "none";
-                            File.WriteAllText(wbSettings, obj.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
-                            actions.Add("已在 ~/.workbuddy/settings.json 中注入 \"mode\": \"none\" 免疫配置");
-                        }
+                        actions.Add(l);
                     }
                 }
                 catch (Exception ex)
                 {
-                    actions.Add($"加固 WorkBuddy 配置跳过: {ex.Message}");
+                    actions.Add($"加固 Agent IDE 配置跳过: {ex.Message}");
                 }
             }
 
@@ -680,5 +669,185 @@ public static class ProxyDoctor
         }
         catch { }
         return null;
+    }
+
+    public static List<(string Name, string Path)> GetKnownIdeSpecs()
+    {
+        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+        return new List<(string Name, string Path)>
+        {
+            ("VS Code", Path.Combine(appData, "Code", "User", "settings.json")),
+            ("Cursor", Path.Combine(appData, "Cursor", "User", "settings.json")),
+            ("Trae", Path.Combine(appData, "Trae", "User", "settings.json")),
+            ("Windsurf", Path.Combine(appData, "Windsurf", "User", "settings.json")),
+            ("WorkBuddy", Path.Combine(userProfile, ".workbuddy", "settings.json")),
+            ("WorkBuddy AI", Path.Combine(userProfile, ".workbuddy-ai", "settings.json")),
+            ("ZCode", Path.Combine(appData, "zcode", "User", "settings.json")),
+            ("VS Code Insiders", Path.Combine(appData, "Code - Insiders", "User", "settings.json"))
+        };
+    }
+
+    public static List<IdeProxyDiagnosis> DetectAgentIdes(string proxyHost, int? proxyPort, bool isPortListening, List<string> details)
+    {
+        var result = new List<IdeProxyDiagnosis>();
+        var specs = GetKnownIdeSpecs();
+
+        foreach (var (name, path) in specs)
+        {
+            if (!File.Exists(path)) continue;
+
+            try
+            {
+                var json = File.ReadAllText(path);
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                string proxySupport = root.TryGetProperty("http.proxySupport", out var psProp) ? psProp.GetString() ?? "" : "";
+                string httpProxy = root.TryGetProperty("http.proxy", out var hpProp) ? hpProp.GetString() ?? "" : "";
+                string mode = root.TryGetProperty("mode", out var mProp) ? mProp.GetString() ?? "" : "";
+
+                bool hasExplicitProxy = !string.IsNullOrWhiteSpace(httpProxy);
+                bool needsHarden = false;
+                string statusDisplay;
+
+                if (isPortListening && proxyPort.HasValue)
+                {
+                    // 系统处于活跃代理状态：IDE 必须启用 proxySupport 或显式配置 proxy，否则自定义模型（境外API）会直接走直连并断网
+                    if (proxySupport.Equals("on", StringComparison.OrdinalIgnoreCase) || hasExplicitProxy)
+                    {
+                        statusDisplay = "🟢 代理支持已开启 (模型外联正常)";
+                    }
+                    else
+                    {
+                        needsHarden = true;
+                        statusDisplay = "⚠️ 缺少代理支持 (自定义模型将直连并失败)";
+                        details.Add($"[Agent IDE 代理缺陷] 检测到 {name} 缺少 \"http.proxySupport\": \"on\"，在访问海外自定义模型（如 DeepSeek、Claude、TokenHarbor 等）时将强行走直连导致断网。");
+                    }
+                }
+                else
+                {
+                    // 系统处于直连状态：检查 IDE 是否残留失效死代理
+                    if (hasExplicitProxy)
+                    {
+                        var (hHost, hPort) = ParseProxyEndpoint(httpProxy);
+                        if (hPort.HasValue && IsLoopbackHost(hHost))
+                        {
+                            var (hListening, _) = TestPort(hHost, hPort.Value);
+                            if (!hListening)
+                            {
+                                needsHarden = true;
+                                statusDisplay = $"🔴 残留死代理 ({httpProxy})";
+                                details.Add($"[Agent IDE 死代理] 检测到 {name} 残留未监听的代理地址: {httpProxy}，会导致 IDE 内所有网络请求被拒。");
+                            }
+                            else
+                            {
+                                statusDisplay = $"活跃代理配置 ({httpProxy})";
+                            }
+                        }
+                        else
+                        {
+                            statusDisplay = $"已配置代理: {httpProxy}";
+                        }
+                    }
+                    else
+                    {
+                        statusDisplay = "🟢 健康直连模式";
+                    }
+                }
+
+                result.Add(new IdeProxyDiagnosis(
+                    Name: name,
+                    SettingsPath: path,
+                    Installed: true,
+                    ProxySupport: proxySupport,
+                    HttpProxy: httpProxy,
+                    HasExplicitProxy: hasExplicitProxy,
+                    StatusDisplay: statusDisplay,
+                    NeedsProxyHarden: needsHarden));
+            }
+            catch (Exception ex)
+            {
+                result.Add(new IdeProxyDiagnosis(
+                    Name: name,
+                    SettingsPath: path,
+                    Installed: true,
+                    ProxySupport: "",
+                    HttpProxy: "",
+                    HasExplicitProxy: false,
+                    StatusDisplay: $"解析异常: {ex.Message}",
+                    NeedsProxyHarden: false));
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// 一键为所有已识别的 Agent IDE（VS Code, Cursor, Trae, WorkBuddy, Windsurf 等）注入代理支持或修复死代理
+    /// </summary>
+    public static (int SucceededCount, List<string> Logs) HardenAllIdeProxies(string? targetProxyUrl = null)
+    {
+        var logs = new List<string>();
+        int count = 0;
+        var specs = GetKnownIdeSpecs();
+
+        // 若未指定目标代理，自动探测系统当前活跃代理
+        string activeProxy = targetProxyUrl ?? "";
+        if (string.IsNullOrEmpty(activeProxy))
+        {
+            var diag = Diagnose();
+            if (diag.ProxyEnable && !string.IsNullOrEmpty(diag.ProxyServer) && !diag.IsDeadLoopbackPort)
+            {
+                activeProxy = diag.ProxyServer.StartsWith("http") ? diag.ProxyServer : $"http://{diag.ProxyServer}";
+            }
+            else
+            {
+                // 默认 Clash / FlClash 常见端口兜底
+                var (is7890, _) = TestPort("127.0.0.1", 7890);
+                if (is7890) activeProxy = "http://127.0.0.1:7890";
+            }
+        }
+
+        foreach (var (name, path) in specs)
+        {
+            if (!File.Exists(path)) continue;
+
+            try
+            {
+                var json = File.ReadAllText(path);
+                var node = JsonNode.Parse(json);
+                if (node is JsonObject obj)
+                {
+                    // 备份原文件
+                    var backupPath = path + $".bak_{DateTime.Now:yyyyMMdd_HHmmss}";
+                    File.Copy(path, backupPath, true);
+
+                    // 注入 VS Code 标准代理支持
+                    obj["http.proxySupport"] = "on";
+                    if (!string.IsNullOrEmpty(activeProxy))
+                    {
+                        obj["http.proxy"] = activeProxy;
+                    }
+
+                    // 兼容 WorkBuddy 特殊模式
+                    if (obj.ContainsKey("mode"))
+                    {
+                        obj["mode"] = !string.IsNullOrEmpty(activeProxy) ? "manual" : "system";
+                    }
+
+                    File.WriteAllText(path, obj.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+                    count++;
+                    logs.Add($"已成功加固 [{name}]: 开启 http.proxySupport: on" + (!string.IsNullOrEmpty(activeProxy) ? $" 并绑定代理 {activeProxy}" : ""));
+                }
+            }
+            catch (Exception ex)
+            {
+                logs.Add($"加固 [{name}] 失败: {ex.Message}");
+            }
+        }
+
+        return (count, logs);
     }
 }

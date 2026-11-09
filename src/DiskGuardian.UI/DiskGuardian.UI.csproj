@@ -16,6 +16,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <EnableMsixTooling>true</EnableMsixTooling>
+    <ApplicationIcon>disk-guardian.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
