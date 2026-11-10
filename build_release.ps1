@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 
 Write-Host "=== DiskGuardian 一键构建与极简打包流水线 ===" -ForegroundColor Cyan
 
@@ -69,6 +69,7 @@ if (Test-Path disk-guardian.ico) {
   - 核心安全硬禁区代码化保护：锁定事件日志 (winevt)、转储文件 (dmp) 与系统核心组件。
   - 极速双清理模式：支持【直接永久清理】（零回收站卡顿）与【移入回收站】（安全防误杀）。
   - Windows 幽灵代理诊断与安全修复 (ProxyDoctor)：免重启 WinINET 广播刷新，绝不杀 explorer.exe。
+  - Windows 资源管理器外壳守护 (ExplorerDoctor)：诊断与一键安全恢复 Windows 11 现代多标签页原生界面。
 ========================================================================
 "@ | Out-File -FilePath "$winuiPkg/使用说明.txt" -Encoding utf8
 
