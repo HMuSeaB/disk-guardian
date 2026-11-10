@@ -64,12 +64,14 @@ graph TD
         RULE["CleanerEngine Governance Engine<br/>(Dual cleanup channels · Intelligent fragment throttling)"]
         DISC["ProjectDiscoverer Dynamic Prober<br/>(Precise detection for Cargo.toml / package.json · Excludes Electron)"]
         PROXY["ProxyDoctor Network Diagnostic Doctor<br/>(WinINET Binary Flags · Git Proxy · Agent IDE Proxy Guard)"]
+        EXPLORER["ExplorerDoctor Shell Doctor<br/>(Win11 Multi-tabs · Modern Fluent Command Bar · Self-healing)"]
     end
 
     subgraph Downstream Environment & Targets
         STORAGE["Physical Disk Storage (OS Drive C: / Code Drive D:)"]
         IDE_ENV["Mainstream Agent IDEs (VS Code / Cursor / Trae / WorkBuddy / Windsurf)"]
         WININET["Windows Registry & Network Subsystem (Broadcast Refresh w/o Killing Explorer)"]
+        SHELL["Windows Desktop Shell & Explorer (Multi-tab Host / Process Policy)"]
     end
 
     GUI --> DENY
@@ -78,10 +80,13 @@ graph TD
     DENY --> DISC
     GUI --> PROXY
     CLI --> PROXY
+    GUI --> EXPLORER
+    CLI --> EXPLORER
     RULE --> STORAGE
     DISC --> STORAGE
     PROXY --> IDE_ENV
     PROXY --> WININET
+    EXPLORER --> SHELL
 ```
 
 ---
@@ -107,12 +112,21 @@ graph TD
   * Diagnoses `http.proxySupport` status to identify why custom overseas models (DeepSeek, Claude, OpenAI, TokenHarbor) fail due to fallback direct connections;
   * One-click hardening automatically injects proxy configurations with automatic `.bak` backups.
 
-### 3. 🛡️ Hard-coded Safety Guardrails (21 Self-test Assertions at 100% PASS)
+### 3. 🗂️ Desktop Shell & Windows Explorer Health Doctor (ExplorerDoctor)
+* **Eliminate Win11 Tab Loss & Win10 Legacy Ribbon Fallbacks**:
+  * Automatically detects whether registry `Shell Extensions\Blocked` maliciously suppresses the Windows 11 modern Fluent Command Bar (`CLSID {e2bf9676-...}`);
+  * Deeply inspects `SeparateProcess` conflicts (launching folder windows in a separate process) that cause multi-tab host detachment;
+  * Identifies session elevation context and alerts against Win32 legacy fallbacks under Administrator privileges;
+* **One-Click Safe Restoration to Win11 Native Shell**:
+  * Restores modern command bars and resets process isolation policies with a single click, broadcasting refresh events via Win32 APIs;
+  * Strictly adheres to Windows Desktop Safety Rules: **Never violently kills `explorer.exe`**, protecting DeskBox and third-party widgets from collapse.
+
+### 4. 🛡️ Hard-coded Safety Guardrails (21 Self-test Assertions at 100% PASS)
 * **Blue-Screen Observation Period Protection**: Code-level hard locks protect `%SystemRoot%\winevt` (event log chain of custody), `MEMORY.DMP`, `Minidump`, and dedicated dump files (`dedicateddumpfile.sys`);
 * **NGEN & Core System Protection**: Prevents deletions in `%SystemRoot%\assembly` (protecting against NGEN background rebuilds that consume 4GB+ disk space) and `WinSxS`;
 * **Runtime Exclusion**: Peer-manifest checks strictly block Electron runtime directories (`resources/app`).
 
-### 4. ⚡ Dual Cleanup Channels & Clean Portable Architecture
+### 5. ⚡ Dual Cleanup Channels & Clean Portable Architecture
 * **Dual Cleanup Modes**:
   * **Direct Permanent Cleanup (Fast Channel)**: Bypasses the Recycle Bin for thousands of tiny cache fragments (Shader/Temp) using filesystem-level deletion;
   * **Move to Recycle Bin (Undoable Channel)**: Two-step confirmation for critical project dependencies;
@@ -146,10 +160,16 @@ disk-guardian --harden-ide-proxy
 # 4. Safely clean ghost proxy registry conflicts (w/o killing explorer.exe)
 disk-guardian --fix-proxy
 
-# 5. Generate a standard Windows desktop shortcut
+# 5. Check desktop shell & Windows Explorer health (detect Win11 tab blocking)
+disk-guardian --check-shell
+
+# 6. One-click restore Windows 11 native multi-tab Explorer shell
+disk-guardian --fix-shell
+
+# 7. Generate a standard Windows desktop shortcut
 disk-guardian --create-shortcut
 
-# 6. Safely empty the Recycle Bin with batch error handling
+# 8. Safely empty the Recycle Bin with batch error handling
 disk-guardian --purge
 ```
 

@@ -46,6 +46,16 @@ public static class Program
             return RunHardenIdeProxy();
         }
 
+        if (args.Contains("--check-shell"))
+        {
+            return RunCheckShell();
+        }
+
+        if (args.Contains("--fix-shell"))
+        {
+            return RunFixShell();
+        }
+
         int level = 1;
         for (int i = 0; i < args.Length; i++)
         {
@@ -232,5 +242,71 @@ public static class Program
         Console.WriteLine("重启对应 IDE 后，自定义海外模型（DeepSeek、Claude、OpenAI、TokenHarbor 等）即可顺畅连通。");
         Console.ResetColor();
         return 0;
+    }
+
+    private static int RunCheckShell()
+    {
+        Console.WriteLine("=== disk-guardian 桌面外壳与资源管理器健康体检 (ExplorerDoctor) ===\n");
+        var report = ExplorerDoctor.Diagnose();
+        Console.WriteLine($"【总体结论】: {report.Summary}\n");
+
+        Console.WriteLine("--- 外壳与资源管理器核心指标 ---");
+        Console.WriteLine($"  * 系统内核版本:     {report.SystemVersionDisplay}");
+        Console.WriteLine($"  * 当前外壳架构:     {report.ShellArchitecture}");
+        Console.WriteLine($"  * 现代Fluent命令栏: {report.BlockedStatusDisplay}");
+        Console.WriteLine($"  * 窗口多进程策略:   {report.SeparateProcessDisplay}");
+        Console.WriteLine($"  * 运行权限环境:     {report.IntegrityStatusDisplay}");
+
+        if (report.Details.Count > 0)
+        {
+            Console.WriteLine("\n--- 底层排查诊断取证 ---");
+            foreach (var d in report.Details)
+            {
+                Console.WriteLine($"  {d}");
+            }
+        }
+
+        Console.WriteLine();
+        if (report.HasAnomaly)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("【建议】检测到系统外壳降级/阻断风险！可执行: disk-guardian --fix-shell 进行一键安全恢复。");
+            Console.ResetColor();
+            return 1;
+        }
+
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("【健康】资源管理器配置纯正，处于 Windows 11 原生多标签页与现代 Fluent 状态。");
+        Console.ResetColor();
+        return 0;
+    }
+
+    private static int RunFixShell()
+    {
+        Console.WriteLine("=== disk-guardian 恢复 Windows 11 原生资源管理器外壳 ===\n");
+        var res = ExplorerDoctor.Repair();
+        if (res.Succeeded)
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("[修复成功] 已执行以下安全恢复步骤:");
+            Console.ResetColor();
+            foreach (var act in res.ActionsTaken)
+            {
+                Console.WriteLine($"  ✓ {act}");
+            }
+
+            Console.WriteLine("\n[生效说明]:");
+            Console.WriteLine("  1. 已通过 Win32 API 广播外壳刷新通知（零黑框、绝不暴力杀 explorer.exe）。");
+            Console.WriteLine("  2. 新打开的资源管理器窗口（Win + E）将即刻生效 Win11 现代标签页。");
+            Console.WriteLine("  3. 若需当前旧窗口立即变更为新版，可在任务管理器中右键【Windows 资源管理器】点击【重新启动】。");
+            return 0;
+        }
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"[修复失败]: {res.ErrorMessage}");
+            Console.ResetColor();
+            return 1;
+        }
     }
 }

@@ -16,6 +16,7 @@ public partial class DashboardPage : Page
         this.InitializeComponent();
         RefreshDrives();
         _ = RefreshProxyStatusAsync();
+        _ = RefreshExplorerStatusAsync();
     }
 
     private void RefreshDrives()
@@ -233,5 +234,108 @@ public partial class DashboardPage : Page
         }
 
         await RefreshProxyStatusAsync();
+    }
+
+    private async Task RefreshExplorerStatusAsync()
+    {
+        try
+        {
+            var report = await Task.Run(() => ExplorerDoctor.Diagnose());
+
+            ExplorerSummaryText.Text = report.Summary;
+
+            // 1. 顶部指示灯与 Badge
+            if (report.HasAnomaly)
+            {
+                ExplorerStatusIcon.Glyph = "\uE7BA"; // Warning icon
+                ExplorerStatusIcon.Foreground = (Brush)Application.Current.Resources["SystemFillColorCautionBrush"];
+                ExplorerBadgeText.Text = "外壳降级/阻断";
+            }
+            else
+            {
+                ExplorerStatusIcon.Glyph = "\uE73E"; // Checkmark icon
+                ExplorerStatusIcon.Foreground = (Brush)Application.Current.Resources["SystemFillColorSuccessBrush"];
+                ExplorerBadgeText.Text = "原生标签页模式";
+            }
+
+            // 2. 四宫格指标 (Metric Tiles)
+            ExplorerArchValueText.Text = report.ShellArchitecture;
+            ExplorerArchSubText.Text = report.IsWin11 ? "Win11 原生 XAML/WASDK" : "Win10 传统 Win32 宿主";
+
+            ExplorerBlockedValueText.Text = report.IsModernShellBlocked ? "异常拦截" : "正常放行";
+            ExplorerBlockedSubText.Text = report.BlockedLocations;
+
+            ExplorerSeparateProcessValueText.Text = report.SeparateProcessEnabled ? "已开启 (冲突)" : "未开启 (推荐)";
+            ExplorerSeparateProcessSubText.Text = report.SeparateProcessEnabled ? "多标签页宿主脱轨" : "单进程多标签共享";
+
+            ExplorerIntegrityValueText.Text = report.IntegrityStatusDisplay;
+            ExplorerIntegritySubText.Text = report.SystemVersionDisplay;
+
+            // 3. 折叠面板取证细节
+            DetailExplorerSysVerText.Text = report.SystemVersionDisplay;
+            DetailExplorerClsidText.Text = report.BlockedStatusDisplay;
+            DetailExplorerSepProcText.Text = report.SeparateProcessDisplay;
+            DetailExplorerIntegrityText.Text = report.IntegrityStatusDisplay;
+
+            if (report.Details.Count > 0)
+            {
+                ExplorerDetailLogsText.Text = string.Join("\n", report.Details);
+            }
+            else
+            {
+                ExplorerDetailLogsText.Text = "系统外壳配置纯净，处于 Windows 11 原生多标签页模式。";
+            }
+        }
+        catch (Exception ex)
+        {
+            ExplorerSummaryText.Text = $"外壳体检异常: {ex.Message}";
+        }
+    }
+
+    private async void RefreshExplorer_Click(object sender, RoutedEventArgs e)
+    {
+        await RefreshExplorerStatusAsync();
+    }
+
+    private async void FixExplorer_Click(object sender, RoutedEventArgs e)
+    {
+        var confirm = new ContentDialog
+        {
+            Title = "一键恢复 Windows 11 原生资源管理器",
+            Content = "将为您执行以下安全恢复步骤：\n\n1. 从注册表中安全移除现代命令栏 (CLSID {e2bf9676-...}) 的 Blocked 屏蔽项；\n2. 将【在单独的进程中打开文件夹窗口】重置为 0（恢复多标签页无缝支持）；\n3. 向 Windows 桌面外壳广播 WM_SETTINGCHANGE 设置刷新事件（绝不暴力杀 explorer.exe）；\n\n是否立即执行？",
+            PrimaryButtonText = "确认恢复",
+            CloseButtonText = "取消",
+            XamlRoot = this.XamlRoot
+        };
+
+        var result = await confirm.ShowAsync();
+        if (result != ContentDialogResult.Primary) return;
+
+        var repairResult = await Task.Run(() => ExplorerDoctor.Repair());
+        if (repairResult.Succeeded)
+        {
+            var actionsStr = string.Join("\n✓ ", repairResult.ActionsTaken);
+            var tip = new ContentDialog
+            {
+                Title = "外壳恢复成功",
+                Content = $"已成功恢复 Windows 11 原生配置！\n\n✓ {actionsStr}\n\n【生效方式】\n新打开的窗口（Win + E）将即刻生效；\n若需当前已打开的窗口刷新，可在任务管理器中右键【Windows 资源管理器】点击【重新启动】。",
+                CloseButtonText = "确定",
+                XamlRoot = this.XamlRoot
+            };
+            await tip.ShowAsync();
+        }
+        else
+        {
+            var tip = new ContentDialog
+            {
+                Title = "恢复遇到问题",
+                Content = repairResult.ErrorMessage,
+                CloseButtonText = "确定",
+                XamlRoot = this.XamlRoot
+            };
+            await tip.ShowAsync();
+        }
+
+        await RefreshExplorerStatusAsync();
     }
 }

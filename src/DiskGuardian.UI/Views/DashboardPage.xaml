@@ -154,6 +154,127 @@
                 </StackPanel>
             </Border>
 
+            <!-- 系统外壳与资源管理器体检卡片 (ExplorerDoctor) -->
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                    CornerRadius="8" Padding="18,16">
+                <StackPanel Spacing="16">
+                    <!-- 顶部状态栏与操作按钮 -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Spacing="6" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                <FontIcon x:Name="ExplorerStatusIcon" Glyph="&#xED25;" FontSize="18" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
+                                <TextBlock Text="桌面外壳与资源管理器体检 (ExplorerDoctor)" FontWeight="SemiBold" FontSize="16"/>
+                                <Border x:Name="ExplorerStatusBadge" Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="8,2">
+                                    <TextBlock x:Name="ExplorerBadgeText" Text="检测中..." FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                </Border>
+                            </StackPanel>
+                            <TextBlock x:Name="ExplorerSummaryText" Text="正在探测 Windows 11 现代 Fluent 命令栏、多标签页架构与进程配置..." 
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="13"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <Button Content="重新体检" Click="RefreshExplorer_Click"/>
+                            <Button x:Name="FixExplorerButton" Content="一键恢复 Win11 原生" Click="FixExplorer_Click" 
+                                    Style="{ThemeResource AccentButtonStyle}"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- 4 宫格核心配置指标面板 (Metric Tiles) -->
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Tile 1: 外壳架构体系 -->
+                        <Border Grid.Column="0" Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                                CornerRadius="6" Padding="12,10">
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="外壳架构体系" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="ExplorerArchValueText" Text="--" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock x:Name="ExplorerArchSubText" Text="检测中" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Tile 2: 现代命令栏阻断 -->
+                        <Border Grid.Column="1" Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                                CornerRadius="6" Padding="12,10">
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="现代 Fluent 命令栏" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="ExplorerBlockedValueText" Text="--" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock x:Name="ExplorerBlockedSubText" Text="检测中" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Tile 3: 窗口进程隔离策略 -->
+                        <Border Grid.Column="2" Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                                CornerRadius="6" Padding="12,10">
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="独立进程策略" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="ExplorerSeparateProcessValueText" Text="--" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock x:Name="ExplorerSeparateProcessSubText" Text="探测中" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Tile 4: 运行权限环境 -->
+                        <Border Grid.Column="3" Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                                CornerRadius="6" Padding="12,10">
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="运行权限与环境" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="ExplorerIntegrityValueText" Text="--" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock x:Name="ExplorerIntegritySubText" Text="分析中" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- 底层技术排查与取证折叠面板 (Expander) -->
+                    <Expander Header="查看外壳配置与排障取证细节" HorizontalAlignment="Stretch">
+                        <StackPanel Spacing="8" Padding="4,8">
+                            <Grid ColumnSpacing="16" RowSpacing="6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Windows 内核版本:" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="DetailExplorerSysVerText" Grid.Row="0" Grid.Column="1" Text="--" FontSize="12" FontWeight="SemiBold"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="现代外壳 CLSID 状态:" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="DetailExplorerClsidText" Grid.Row="1" Grid.Column="1" Text="--" FontSize="12"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="独立进程配置 (SeparateProcess):" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="DetailExplorerSepProcText" Grid.Row="2" Grid.Column="1" Text="--" FontSize="12"/>
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="当前会话运行权限:" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="DetailExplorerIntegrityText" Grid.Row="3" Grid.Column="1" Text="--" FontSize="12"/>
+                            </Grid>
+
+                            <TextBlock Text="取证分析日志与修复建议:" FontSize="12" FontWeight="SemiBold" Margin="0,4,0,0"/>
+                            <TextBlock x:Name="ExplorerDetailLogsText" Text="无异常日志" 
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}" FontSize="11" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Expander>
+                </StackPanel>
+            </Border>
+
             <!-- 磁盘容量卡片组 -->
             <Grid ColumnSpacing="16">
                 <Grid.ColumnDefinitions>

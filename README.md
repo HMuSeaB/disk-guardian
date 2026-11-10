@@ -64,12 +64,14 @@ graph TD
         RULE["CleanerEngine 规则治理引擎<br/>(双清理通道 · 碎片智能流控)"]
         DISC["ProjectDiscoverer 动态项目探测<br/>(Cargo.toml / package.json 精准识别 · 排除 Electron)"]
         PROXY["ProxyDoctor 代理医生<br/>(WinINET 二进制Flags · Git全局代理 · Agent IDE 代理防线)"]
+        EXPLORER["ExplorerDoctor 外壳医生<br/>(Win11多标签页 · 现代Fluent命令栏 · 阻断自愈)"]
     end
 
     subgraph 下游环境与目标宿主
         STORAGE["物理磁盘存储 (C 盘 / D 盘代码仓)"]
         IDE_ENV["主流 Agent IDE (VS Code / Cursor / Trae / WorkBuddy / Windsurf)"]
         WININET["Windows 注册表与网络子系统 (免杀 Explorer 广播刷新)"]
+        SHELL["Windows 桌面外壳与资源管理器 (多标签页宿主 / 进程策略)"]
     end
 
     GUI --> DENY
@@ -78,15 +80,18 @@ graph TD
     DENY --> DISC
     GUI --> PROXY
     CLI --> PROXY
+    GUI --> EXPLORER
+    CLI --> EXPLORER
     RULE --> STORAGE
     DISC --> STORAGE
     PROXY --> IDE_ENV
     PROXY --> WININET
+    EXPLORER --> SHELL
 ```
 
 ---
 
-## ✨ 四大核心守护特性
+## ✨ 五大核心守护特性
 
 ### 1. 🎯 现代开发链专治与子项目精准细化勾选
 * **Dism++ 盲区全面覆盖**：自动精准探测系统级 Shader 着色器缓存（DXCache/GLCache）、Go 编译缓存、Playwright 二进制与开发包；
@@ -107,12 +112,21 @@ graph TD
   * 诊断 `http.proxySupport` 状态，自动识别因 IDE 缺省判定直连导致海外自定义模型（DeepSeek、Claude、OpenAI、TokenHarbor、TokenRouter）断网连接失败的弱点；
   * 支持一键安全注入代理与加固（带自动 `.bak` 备份），重启 IDE 秒级畅通。
 
-### 3. 🛡️ 核心硬禁区代码化锁定 (21 项自测断言 100% 固化)
+### 3. 🗂️ 桌面外壳与资源管理器健康守护 (ExplorerDoctor)
+* **根治 Win11 标签页丢失与 Win10 经典回退**：
+  * 自动探测注册表 `Shell Extensions\Blocked` 是否恶意屏蔽了 Windows 11 现代 Fluent 命令栏 (`CLSID {e2bf9676-...}`)；
+  * 深度排查 `SeparateProcess`（在单独的进程中打开文件夹）设置冲突，防止多标签页宿主脱轨；
+  * 检测当前运行会话的提权状态，提示管理员权限下的 Win32 回退风险；
+* **一键安全恢复 Win11 原生状态**：
+  * 一键清理注册表拦截键并重置进程策略，通过 Win32 API 广播外壳刷新；
+  * 严格遵守系统桌面安全准则：**严禁暴力强杀 `explorer.exe`**，杜绝 DeskBox 与第三方微件塌陷。
+
+### 4. 🛡️ 核心硬禁区代码化锁定 (21 项自测断言 100% 固化)
 * **蓝屏观察期防护**：代码级硬编码锁定 `%SystemRoot%\winevt`（事件日志证据链）、`MEMORY.DMP`、`Minidump` 与专用转储文件 `dedicateddumpfile.sys`，即使规则写错或手滑也绝无可能越界误杀；
 * **NGEN 与系统核心保护**：阻断 `%SystemRoot%\assembly`（防止清空后后台重建反向吃光磁盘）与 `WinSxS`；
 * **严格排除运行时误触**：同级清单识别严格阻断 Electron 运行时内置目录（如 `resources/app`），绝不影响日常办公软件。
 
-### 4. ⚡ 极速双清理通道与绿色便携架构
+### 5. ⚡ 极速双清理通道与绿色便携架构
 * **双清理模式分流**：
   * **【直接永久清理 (极速模式)】**：针对 Shader/Temp 等数千个零碎临时文件，跳过系统回收站直接文件系统物理级抹除，绝不阻塞系统回收站；
   * **【移入回收站 (可撤销)】**：用于重要工程与文件，支持两步确认与随时撤销还原；
@@ -147,10 +161,16 @@ disk-guardian --harden-ide-proxy
 # 4. 安全清洗幽灵代理残留并广播生效 (绝不杀 explorer.exe)
 disk-guardian --fix-proxy
 
-# 5. 在用户桌面创建规范快捷方式
+# 5. 体检 Windows 资源管理器与外壳健康状态 (检测 Win11 标签页阻断)
+disk-guardian --check-shell
+
+# 6. 一键安全恢复 Windows 11 现代多标签页原生外壳
+disk-guardian --fix-shell
+
+# 7. 在用户桌面创建规范快捷方式
 disk-guardian --create-shortcut
 
-# 6. 安全防卡死清空回收站
+# 8. 安全防卡死清空回收站
 disk-guardian --purge
 ```
 
@@ -164,6 +184,8 @@ disk-guardian --purge
 | `--check-proxy` | 网络与代理体检 | 结构化输出 WinINET 标志位、回环端口连通性延迟、Git 代理、Agent IDE 代理配置 |
 | `--harden-ide-proxy`| Agent IDE 加固 | 扫描 VS Code/Cursor/Trae/WorkBuddy 等，自动注入 `http.proxySupport` 与活跃代理 |
 | `--fix-proxy` | 幽灵代理安全清洗 | 自动备份注册表，清洗 DefaultConnectionSettings 手动位，WinINet 广播生效 |
+| `--check-shell` | 桌面外壳体检 | 检测 Win11 现代 Fluent 命令栏 Blocked 拦截、SeparateProcess 进程冲突与提权上下文 |
+| `--fix-shell` | 恢复 Win11 原生外壳 | 解除注册表命令栏阻断，重置进程隔离策略为 0，广播 WM_SETTINGCHANGE 设置刷新 |
 | `--create-shortcut` | 快捷方式生成 | 动态解析当前桌面路径，调用 Win32 原生 COM 接口生成 `DiskGuardian.lnk` |
 | `--level <1/2/3>` | 清理安全级别 | 默认 1（纯快速安全缓存）；2 级需重下构建产物；3 级需确认关键数据 |
 | `--apply` | 执行清理操作 | 默认安全移入回收站（两步可撤销） |

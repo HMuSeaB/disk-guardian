@@ -1,24 +1,24 @@
-# 任务清单：极简现代设计语言重构 (App Icon & README)
+# 任务看板：ExplorerDoctor 资源管理器与系统外壳健康体检系统
 
-## 任务目标
-深度对齐用户桌面环境（如 `wbmux`、`AnyCursor`、`Cursor Launcher`）与高端 GitHub 知名开源项目（Raycast、Linear、Zed、Tauri），彻底废弃生硬拟物和粗糙 ASCII，全面换装 2D 扁平极简矢量 Squircle 图标体系与顶级项目门面。
+## 当前任务目标
+为 `DiskGuardian` 构建系统级外壳医生 `ExplorerDoctor`，提供对 Windows 11 原生标签页资源管理器的健康诊断、降级原因探测与一键修复能力，与 `ProxyDoctor` 并列作为核心守护模块。
 
-## 任务进度看板
-
-- [x] **设计解构与视觉调研**:
-  - [x] 分析用户真实收纳文件夹中的设计语言：纯粹 Squircle 底座、单一高反差对比色、50%~55% 舒适呼吸留白、高识别度极简几何符号；
-  - [x] 确立 DiskGuardian 标志性超级符号：现代几何护盾（Guardian）+ 嵌套同心同轴数据磁道与电光青蓝扫描弧（Disk Storage Platter）。
-- [x] **生产级矢量资产与多尺寸 ICO 生成**:
-  - [x] 生成 1024x1024 高精源图 `assets/icon-source.jpg`；
-  - [x] 精准裁切 768x768 连续曲率 Squircle 并在超高分辨率下通过 SSAA 与高斯平滑羽化生成透明 Alpha 通道；
-  - [x] 导出 `assets/icon.png` (512x512) 与 `assets/icon-256.png`；
-  - [x] 导出包含 256x256 ~ 16x16 完整 6 档尺寸链的 Windows PE 图标 `disk-guardian.ico`；
-  - [x] 重构自动化构建脚本 `tools/generate_icon.py`。
-- [x] **可执行程序与桌面快捷方式刷新**:
-  - [x] 使用 `windres` 重新编译资源并链接生成 `DiskGuardian.exe`；
-  - [x] 自动更新桌面快捷方式 `DiskGuardian.lnk`，实测完美呈现纯黑白翠青极简 Squircle 图标；
-  - [x] 运行 21 项安全硬禁区代码化自测（100% 全部 PASS）。
-- [x] **中英文官方门面重构 (README.md / README_EN.md)**:
-  - [x] 彻底移除古旧生硬的巨幅 ASCII Art，对齐顶尖开源项目排版；
-  - [x] 居中内嵌高质量 `assets/icon.png` 品牌徽标，搭配沉浸感圆角与环境阴影；
-  - [x] 提炼精纯的一句话价值主张（One-liner）与模块化拓扑结构。
+## 进度看板
+- [x] **Core 诊断引擎研发**:
+  - [x] 创建 `src/DiskGuardian.Core/Diagnostics/ExplorerDoctor.cs`；
+  - [x] 实现注册表 `Shell Extensions\Blocked` 探测与修复；
+  - [x] 实现 `Advanced\SeparateProcess` 探测与一键归零；
+  - [x] 实现提权与环境风险取证分析；
+  - [x] 注入 Win32 API `WM_SETTINGCHANGE` 广播通知（严禁杀死 explorer）。
+- [x] **CLI 命令行扩展**:
+  - [x] 支持 `--check-shell` 与 `--fix-shell` 命令行参数及美化控制台输出。
+- [x] **UI 仪表盘集成**:
+  - [x] 在 `DashboardPage.xaml` 中设计高质感 ExplorerDoctor 诊断卡片；
+  - [x] 呈现 4 宫格指标、状态徽章与底层取证折叠面板；
+  - [x] 绑定一键体检与一键安全修复交互。
+- [x] **工程验证**:
+  - [x] 全套构建编译 0 警告 0 错误；
+  - [x] CLI 真实命令执行验证；
+  - [x] 确保桌面安全规则零违规（保护 explorer.exe 与 DeskBox 微件）。
+- [x] **文档与双语门面更新**:
+  - [x] 同步更新 `README.md` 与 `README_EN.md`。
