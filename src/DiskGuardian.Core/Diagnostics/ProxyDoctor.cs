@@ -46,7 +46,9 @@ public sealed record ProxyDiagnosisResult(
     string AppHardeningDisplay,
     string ToolchainStatusDisplay,
     bool WorkBuddyDetected,
-    List<IdeProxyDiagnosis> IdeList);
+    List<IdeProxyDiagnosis> IdeList,
+    List<string> RunningProxyClients,
+    string RunningClientsDisplay);
 
 public sealed record ProxyRepairResult(
     bool Succeeded,
@@ -69,8 +71,47 @@ public static class ProxyDoctor
     [DllImport("wininet.dll", SetLastError = true, CharSet = CharSet.Auto)]
     private static extern bool InternetSetOption(IntPtr hInternet, int dwOption, IntPtr lpBuffer, int dwBufferLength);
 
+    [DllImport("dnsapi.dll", EntryPoint = "DnsFlushResolverCache")]
+    private static extern bool DnsFlushResolverCache();
+
     private const int INTERNET_OPTION_SETTINGS_CHANGED = 39;
     private const int INTERNET_OPTION_REFRESH = 37;
+
+    private static readonly string[] KnownProxyProcessKeywords =
+    {
+        "flclash", "clash", "mihomo", "v2ray", "xray", "sing-box"
+    };
+
+    /// <summary>
+    /// 探测系统当前运行的主流代理客户端进程与系统服务
+    /// </summary>
+    public static List<(string ProcessName, int Id, bool IsService)> DetectRunningProxyProcesses()
+    {
+        var list = new List<(string, int, bool)>();
+        try
+        {
+            var processes = System.Diagnostics.Process.GetProcesses();
+            foreach (var p in processes)
+            {
+                try
+                {
+                    var nameLower = p.ProcessName.ToLowerInvariant();
+                    if (KnownProxyProcessKeywords.Any(k => nameLower.Contains(k)))
+                    {
+                        bool isService = p.SessionId == 0;
+                        list.Add((p.ProcessName, p.Id, isService));
+                    }
+                }
+                catch { }
+                finally
+                {
+                    p.Dispose();
+                }
+            }
+        }
+        catch { }
+        return list;
+    }
 
     /// <summary>
     /// 全面体检当前系统的代理状态，提取丰富细节
@@ -314,7 +355,30 @@ public static class ProxyDoctor
             toolchainStatusDisplay = "🟢 纯净健康 (无外部代理污染)";
         }
 
-        // 9. 综合评定
+        // 9. 探测后台常驻代理进程（如 FlClash、Clash Verge、Mihomo 等）
+        var runningClients = DetectRunningProxyProcesses();
+        var clientStrings = new List<string>();
+        string runningClientsDisplay;
+        if (runningClients.Count > 0)
+        {
+            foreach (var c in runningClients)
+            {
+                string desc = c.IsService ? $"{c.ProcessName} (PID: {c.Id}, 系统服务)" : $"{c.ProcessName} (PID: {c.Id}, 托盘/前台)";
+                clientStrings.Add(desc);
+            }
+            runningClientsDisplay = string.Join(", ", runningClients.Select(c => c.ProcessName).Distinct());
+            details.Add($"· [后台驻留] 检测到 {runningClients.Count} 个代理相关进程运行中: {string.Join("；", clientStrings)}。");
+            if (proxyEnable)
+            {
+                details.Add("· [游戏直连提示] 若需打游戏直连，请在代理客户端托盘中彻底退出，或在工具箱中使用【一键切换纯净直连】退出后台并重置代理。");
+            }
+        }
+        else
+        {
+            runningClientsDisplay = "无后台常驻进程";
+        }
+
+        // 10. 综合评定
         bool hasAnomaly = inconsistentFlags || (isDeadPort && (proxyEnable || binaryManualProxy)) || deadUserEnv || deadGitProxy;
 
         string summary;
@@ -334,9 +398,19 @@ public static class ProxyDoctor
         else
         {
             if (proxyEnable)
-                summary = $"正常 (正在使用活跃代理: {proxyServer})";
+            {
+                if (runningClients.Count > 0)
+                    summary = $"活跃代理 (由 {runningClientsDisplay} 托管: {proxyServer})";
+                else
+                    summary = $"正常 (正在使用活跃代理: {proxyServer})";
+            }
             else
-                summary = "健康 (直连模式，无幽灵代理残留)";
+            {
+                if (runningClients.Count > 0)
+                    summary = $"系统直连 (注意: 后台仍有 {runningClientsDisplay} 在运行)";
+                else
+                    summary = "健康 (纯净直连模式，无幽灵代理残留)";
+            }
         }
 
         return new ProxyDiagnosisResult(
@@ -365,7 +439,9 @@ public static class ProxyDoctor
             AppHardeningDisplay: appHardeningDisplay,
             ToolchainStatusDisplay: toolchainStatusDisplay,
             WorkBuddyDetected: workBuddyDetected,
-            IdeList: ideList);
+            IdeList: ideList,
+            RunningProxyClients: clientStrings,
+            RunningClientsDisplay: runningClientsDisplay);
     }
 
     private static string InterpretBinaryFlag(byte flag)
@@ -468,6 +544,135 @@ public static class ProxyDoctor
                 {
                     actions.Add($"加固 Agent IDE 配置跳过: {ex.Message}");
                 }
+            }
+
+            return new ProxyRepairResult(
+                Succeeded: true,
+                BackupPath: backupPath,
+                ActionsTaken: actions,
+                ErrorMessage: null);
+        }
+        catch (Exception ex)
+        {
+            return new ProxyRepairResult(
+                Succeeded: false,
+                BackupPath: backupPath,
+                ActionsTaken: actions,
+                ErrorMessage: ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// 一键切回纯净直连模式 (专为打游戏、局域网直连或彻底退出代理设计)：
+    /// 1. 可选安全退出后台残留的代理进程（如 FlClash 托盘/内核、Clash Verge 等，绝不修改删除用户订阅与配置文件）；
+    /// 2. 彻底重置注册表 ProxyEnable=0 并清空 ProxyServer；
+    /// 3. 清洗 DefaultConnectionSettings 与 SavedLegacySettings 的第 8 字节二进制标志为 0x01 (直连)；
+    /// 4. 清理用户环境变量 (HTTP_PROXY / HTTPS_PROXY / ALL_PROXY)；
+    /// 5. 通过 WinINet API 向操作系统广播代理设置更新 (全局即刻生效，绝不杀 explorer.exe)；
+    /// 6. 调用 Win32 API 刷新系统 DNS 解析缓存 (清除 Fake-IP 域名污染)。
+    /// </summary>
+    public static ProxyRepairResult SwitchToPureDirect(bool terminateRunningClients = true, string? outputDir = null)
+    {
+        var actions = new List<string>();
+        string backupPath = "";
+
+        try
+        {
+            // 步骤 1: 自动备份当前注册表原值
+            var baseDir = outputDir ?? AppDomain.CurrentDomain.BaseDirectory;
+            var outDir = Path.Combine(baseDir, "out");
+            Directory.CreateDirectory(outDir);
+
+            backupPath = Path.Combine(outDir, $"proxy_backup_{DateTime.Now:yyyyMMdd_HHmmss}.reg");
+            ExportProxyRegistryBackup(backupPath);
+            actions.Add($"已自动备份当前注册表原值至: {backupPath}");
+
+            // 步骤 2: 如需要，安全退出/终止后台残留的代理客户端 (保护用户配置与订阅)
+            if (terminateRunningClients)
+            {
+                var running = DetectRunningProxyProcesses();
+                int killedCount = 0;
+                foreach (var (name, id, isService) in running)
+                {
+                    try
+                    {
+                        using var proc = System.Diagnostics.Process.GetProcessById(id);
+                        if (!proc.HasExited)
+                        {
+                            proc.Kill();
+                            proc.WaitForExit(1000);
+                            killedCount++;
+                            actions.Add($"已安全退出后台代理进程: {name} (PID: {id})");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        actions.Add($"尝试退出 {name} (PID: {id}) 提示: {ex.Message}");
+                    }
+                }
+                if (killedCount == 0 && running.Count == 0)
+                {
+                    actions.Add("后台未检测到常驻代理进程。");
+                }
+            }
+
+            // 步骤 3: 强制重置注册表 ProxyEnable 为 0 并清空 ProxyServer
+            using (var key = Registry.CurrentUser.OpenSubKey(InternetSettingsKey, true))
+            {
+                if (key != null)
+                {
+                    key.SetValue("ProxyEnable", 0, RegistryValueKind.DWord);
+                    key.SetValue("ProxyServer", "", RegistryValueKind.String);
+                    actions.Add("已将注册表 ProxyEnable 设为 0 (完全关闭)，并清空 ProxyServer 字段");
+                }
+            }
+
+            // 步骤 4: 清洗二进制标志位
+            using (var connKey = Registry.CurrentUser.OpenSubKey(ConnectionsKey, true))
+            {
+                if (connKey != null)
+                {
+                    SanitizeConnectionBinary(connKey, "DefaultConnectionSettings", actions);
+                    SanitizeConnectionBinary(connKey, "SavedLegacySettings", actions);
+                }
+            }
+
+            // 步骤 5: 广播 WinINet 配置变更 (严禁杀死 explorer.exe)
+            bool opt1 = InternetSetOption(IntPtr.Zero, INTERNET_OPTION_SETTINGS_CHANGED, IntPtr.Zero, 0);
+            bool opt2 = InternetSetOption(IntPtr.Zero, INTERNET_OPTION_REFRESH, IntPtr.Zero, 0);
+            if (opt1 && opt2)
+            {
+                actions.Add("已通过 WinINet API 向操作系统广播系统代理已关闭 (即刻生效)");
+            }
+
+            // 步骤 6: 清理用户级环境变量 (HTTP_PROXY / HTTPS_PROXY / ALL_PROXY)
+            try
+            {
+                Environment.SetEnvironmentVariable("HTTP_PROXY", null, EnvironmentVariableTarget.User);
+                Environment.SetEnvironmentVariable("HTTPS_PROXY", null, EnvironmentVariableTarget.User);
+                Environment.SetEnvironmentVariable("ALL_PROXY", null, EnvironmentVariableTarget.User);
+                actions.Add("已清除用户环境变量 HTTP_PROXY / HTTPS_PROXY / ALL_PROXY");
+            }
+            catch (Exception ex)
+            {
+                actions.Add($"清理环境变量跳过: {ex.Message}");
+            }
+
+            // 步骤 7: 刷新系统 DNS 缓存
+            try
+            {
+                if (DnsFlushResolverCache())
+                {
+                    actions.Add("已刷新 Windows 系统 DNS 解析缓存 (清除 Fake-IP 域名污染)");
+                }
+                else
+                {
+                    actions.Add("已请求刷新系统 DNS 缓存");
+                }
+            }
+            catch (Exception ex)
+            {
+                actions.Add($"刷新 DNS 接口异常: {ex.Message}");
             }
 
             return new ProxyRepairResult(

@@ -161,16 +161,19 @@ disk-guardian --harden-ide-proxy
 # 4. 安全清洗幽灵代理残留并广播生效 (绝不杀 explorer.exe)
 disk-guardian --fix-proxy
 
-# 5. 体检 Windows 资源管理器与外壳健康状态 (检测 Win11 标签页阻断)
+# 5. 一键切回纯净直连模式 (退出后台托盘代理、重置注册表为 0、刷新 DNS，游戏无阻直连)
+disk-guardian --direct
+
+# 6. 体检 Windows 资源管理器与外壳健康状态 (检测 Win11 标签页阻断)
 disk-guardian --check-shell
 
-# 6. 一键安全恢复 Windows 11 现代多标签页原生外壳
+# 7. 一键安全恢复 Windows 11 现代多标签页原生外壳
 disk-guardian --fix-shell
 
-# 7. 在用户桌面创建规范快捷方式
+# 8. 在用户桌面创建规范快捷方式
 disk-guardian --create-shortcut
 
-# 8. 安全防卡死清空回收站
+# 9. 安全防卡死清空回收站
 disk-guardian --purge
 ```
 
@@ -181,7 +184,8 @@ disk-guardian --purge
 | 参数标志 | 模式说明 | 行为说明 |
 |---|---|---|
 | `--check-rules` | 核心安全自检 | 运行 18 项 `HARD_DENY` 硬断言 + 3 项项目发现断言，出现任何漏洞直接 fail-fast 阻断 |
-| `--check-proxy` | 网络与代理体检 | 结构化输出 WinINET 标志位、回环端口连通性延迟、Git 代理、Agent IDE 代理配置 |
+| `--check-proxy` | 网络与代理体检 | 结构化输出 WinINET 标志位、回环端口连通性延迟、后台常驻代理进程、Git 代理、IDE 代理配置 |
+| `--direct` | 切换纯净直连 | 专为打游戏设计：安全退出后台代理客户端、清空系统代理为 0、WinINET 广播、刷新 DNS 缓存 |
 | `--harden-ide-proxy`| Agent IDE 加固 | 扫描 VS Code/Cursor/Trae/WorkBuddy 等，自动注入 `http.proxySupport` 与活跃代理 |
 | `--fix-proxy` | 幽灵代理安全清洗 | 自动备份注册表，清洗 DefaultConnectionSettings 手动位，WinINet 广播生效 |
 | `--check-shell` | 桌面外壳体检 | 检测 Win11 现代 Fluent 命令栏 Blocked 拦截、SeparateProcess 进程冲突与提权上下文 |

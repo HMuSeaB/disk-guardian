@@ -121,6 +121,15 @@ public partial class DashboardPage : Page
                 DetailIdeListText.Text = "本机未检测到 VS Code / Cursor / Trae 等 Agent IDE 默认配置目录。";
             }
 
+            if (report.RunningProxyClients.Count > 0)
+            {
+                DetailRunningClientsText.Text = "• " + string.Join("\n• ", report.RunningProxyClients);
+            }
+            else
+            {
+                DetailRunningClientsText.Text = "当前无后台常驻的代理客户端进程。";
+            }
+
             if (report.Details.Count > 0)
             {
                 ProxyDetailLogsText.Text = "• " + string.Join("\n• ", report.Details);
@@ -226,6 +235,48 @@ public partial class DashboardPage : Page
             var tip = new ContentDialog
             {
                 Title = "修复遇到问题",
+                Content = repairResult.ErrorMessage,
+                CloseButtonText = "确定",
+                XamlRoot = this.XamlRoot
+            };
+            await tip.ShowAsync();
+        }
+
+        await RefreshProxyStatusAsync();
+    }
+
+    private async void PureDirect_Click(object sender, RoutedEventArgs e)
+    {
+        var confirm = new ContentDialog
+        {
+            Title = "一键切回纯净直连模式 (适合打游戏/局域网)",
+            Content = "将为您执行以下彻底脱网与直连动作：\n\n1. 安全退出后台常驻的代理客户端（如 FlClash 托盘与内核进程，完全保留您的订阅与配置文件，绝不损坏）；\n2. 强制将 Windows 系统代理 ProxyEnable 重置为 0，清空 ProxyServer；\n3. 清洗底层二进制标志位为 0x01 (直连)；\n4. WinINET 原生广播刷新 (全局即刻生效，绝不杀 explorer.exe)；\n5. 清除系统 DNS 缓存 (彻底消除代理 Fake-IP 域名残留)。\n\n是否立即执行？",
+            PrimaryButtonText = "确认直连",
+            CloseButtonText = "取消",
+            XamlRoot = this.XamlRoot
+        };
+
+        var result = await confirm.ShowAsync();
+        if (result != ContentDialogResult.Primary) return;
+
+        var repairResult = await Task.Run(() => ProxyDoctor.SwitchToPureDirect(terminateRunningClients: true));
+        if (repairResult.Succeeded)
+        {
+            var actionsStr = string.Join("\n✓ ", repairResult.ActionsTaken);
+            var tip = new ContentDialog
+            {
+                Title = "已恢复纯净直连模式",
+                Content = $"系统代理已彻底清空，游戏可顺畅直连！\n\n✓ {actionsStr}\n\n【说明】\n您的 FlClash 配置与订阅已完整保留，下次需要时直接重新启动 FlClash 即可。",
+                CloseButtonText = "确定",
+                XamlRoot = this.XamlRoot
+            };
+            await tip.ShowAsync();
+        }
+        else
+        {
+            var tip = new ContentDialog
+            {
+                Title = "直连切换遇到问题",
                 Content = repairResult.ErrorMessage,
                 CloseButtonText = "确定",
                 XamlRoot = this.XamlRoot

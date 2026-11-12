@@ -160,7 +160,10 @@ disk-guardian --harden-ide-proxy
 # 4. Safely clean ghost proxy registry conflicts (w/o killing explorer.exe)
 disk-guardian --fix-proxy
 
-# 5. Check desktop shell & Windows Explorer health (detect Win11 tab blocking)
+# 5. One-click switch to Pure Direct mode (quit background tray proxies, reset registry to 0, flush DNS for gaming)
+disk-guardian --direct
+
+# 6. Check desktop shell & Windows Explorer health (detect Win11 tab blocking)
 disk-guardian --check-shell
 
 # 6. One-click restore Windows 11 native multi-tab Explorer shell

@@ -41,6 +41,11 @@ public static class Program
             return RunFixProxy();
         }
 
+        if (args.Contains("--direct") || args.Contains("--force-direct"))
+        {
+            return RunSwitchToPureDirect();
+        }
+
         if (args.Contains("--harden-ide-proxy"))
         {
             return RunHardenIdeProxy();
@@ -192,6 +197,15 @@ public static class Program
             }
         }
 
+        if (report.RunningProxyClients.Count > 0)
+        {
+            Console.WriteLine("\n--- 后台常驻代理客户端/系统服务 ---");
+            foreach (var client in report.RunningProxyClients)
+            {
+                Console.WriteLine($"  * {client}");
+            }
+        }
+
         if (report.Details.Count > 0)
         {
             Console.WriteLine("\n--- 详细技术排查诊断取证 ---");
@@ -201,7 +215,7 @@ public static class Program
             }
         }
 
-        Console.WriteLine("\n" + (report.HasAnomaly ? "【告警】检测到异常！建议执行: disk-guardian --fix-proxy 进行一键安全清洗。" : "【健康】网络与代理状态良好，未发现幽灵残留冲突。"));
+        Console.WriteLine("\n" + (report.HasAnomaly ? "【告警】检测到异常！建议执行: disk-guardian --fix-proxy 进行一键安全清洗。" : "【网络概况】" + (report.ProxyEnable ? "当前代理工作中。若需打游戏直连，请执行: disk-guardian --direct" : "纯净直连模式，无代理干扰。")));
         return report.HasAnomaly ? 1 : 0;
     }
 
@@ -222,6 +236,32 @@ public static class Program
         else
         {
             Console.WriteLine($"[修复失败]: {res.ErrorMessage}");
+            return 1;
+        }
+    }
+
+    private static int RunSwitchToPureDirect()
+    {
+        Console.WriteLine("=== disk-guardian 一键切回纯净直连模式 (游戏/低延迟模式) ===\n");
+        var res = ProxyDoctor.SwitchToPureDirect(terminateRunningClients: true);
+        if (res.Succeeded)
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("[直连切换成功] 已彻底消除系统代理与后台驻留:");
+            Console.ResetColor();
+            foreach (var act in res.ActionsTaken)
+            {
+                Console.WriteLine($"  ✓ {act}");
+            }
+            Console.WriteLine($"\n系统设置与 DNS 解析缓存已全量即刻生效。备份已归档至:\n  {res.BackupPath}");
+            Console.WriteLine("提示: 您的 FlClash 配置与订阅已完整保留，下次需要时直接重新启动 FlClash 即可。");
+            return 0;
+        }
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"[切换失败]: {res.ErrorMessage}");
+            Console.ResetColor();
             return 1;
         }
     }

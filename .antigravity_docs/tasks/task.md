@@ -1,24 +1,22 @@
-# 任务看板：ExplorerDoctor 资源管理器与系统外壳健康体检系统
+# 任务看板：代理退出残留净化与纯净游戏直连模式 (Pure Direct)
 
 ## 当前任务目标
-为 `DiskGuardian` 构建系统级外壳医生 `ExplorerDoctor`，提供对 Windows 11 原生标签页资源管理器的健康诊断、降级原因探测与一键修复能力，与 `ProxyDoctor` 并列作为核心守护模块。
+支持用户在正常使用 FlClash 的同时，在需要退出代理打游戏时，彻底消除一切后台托盘残留、系统服务死锁与注册表代理注入，提供一键切断代理无缝直连的保障。
 
 ## 进度看板
-- [x] **Core 诊断引擎研发**:
-  - [x] 创建 `src/DiskGuardian.Core/Diagnostics/ExplorerDoctor.cs`；
-  - [x] 实现注册表 `Shell Extensions\Blocked` 探测与修复；
-  - [x] 实现 `Advanced\SeparateProcess` 探测与一键归零；
-  - [x] 实现提权与环境风险取证分析；
-  - [x] 注入 Win32 API `WM_SETTINGCHANGE` 广播通知（严禁杀死 explorer）。
-- [x] **CLI 命令行扩展**:
-  - [x] 支持 `--check-shell` 与 `--fix-shell` 命令行参数及美化控制台输出。
+- [x] **Core 诊断与直连引擎研发**:
+  - [x] 在 `ProxyDoctor.cs` 中实现主流代理进程探测（FlClash, FlClashCore, FlClashHelperService, clash-verge, mihomo 等）；
+  - [x] 在 `ProxyDiagnosisResult` 中加入 `RunningClients` 识别展示；
+  - [x] 实现 `SwitchToPureDirect`：强制清理系统代理、清洗二进制 Flags、广播 WinINET 变更并调用 `DnsFlushResolverCache` 刷新系统 DNS；
+  - [x] 安全保障：绝不修改或删除用户的 FlClash 规则、节点和订阅，保留日常科学上网能力。
+- [x] **CLI 运维命令扩展**:
+  - [x] 增加 `--direct` / `--force-direct` 一键切回纯净直连命令；
+  - [x] 在 `--check-proxy` 中增加对后台常驻代理进程的结构化列表与直连指引输出。
 - [x] **UI 仪表盘集成**:
-  - [x] 在 `DashboardPage.xaml` 中设计高质感 ExplorerDoctor 诊断卡片；
-  - [x] 呈现 4 宫格指标、状态徽章与底层取证折叠面板；
-  - [x] 绑定一键体检与一键安全修复交互。
-- [x] **工程验证**:
-  - [x] 全套构建编译 0 警告 0 错误；
-  - [x] CLI 真实命令执行验证；
-  - [x] 确保桌面安全规则零违规（保护 explorer.exe 与 DeskBox 微件）。
-- [x] **文档与双语门面更新**:
-  - [x] 同步更新 `README.md` 与 `README_EN.md`。
+  - [x] 在 `DashboardPage.xaml` 顶部加入【🎮 切回纯净直连 (游戏模式)】按钮；
+  - [x] 在取证折叠面板中展示后台常驻代理软件；
+  - [x] 绑定带二次确认与即时生效反馈的纯净直连交互。
+- [x] **工程验证与文档**:
+  - [x] 全方案编译 0 警告 0 错误；
+  - [x] 21 项安全自测 100% 全部通过；
+  - [x] 更新 `README.md` 与 `README_EN.md`。
