@@ -529,20 +529,28 @@ public static class ProxyDoctor
                 actions.Add($"清理用户环境变量跳过: {ex.Message}");
             }
 
-            // 步骤 5: 加固主流 Agent IDE 与开发工具代理防线 (VS Code, Cursor, Trae, WorkBuddy, Windsurf 等)
+            // 步骤 5: 治理主流 Agent IDE 与开发工具代理防线 (VS Code, Cursor, Trae, WorkBuddy, Windsurf 等)
             if (hardenWorkBuddy)
             {
                 try
                 {
-                    var (ideCount, ideLogs) = HardenAllIdeProxies();
-                    foreach (var l in ideLogs)
+                    // 检测当前端口是否处于活跃监听
+                    var (is7890Alive, _) = TestPort("127.0.0.1", 7890);
+                    if (is7890Alive)
                     {
-                        actions.Add(l);
+                        var (ideCount, ideLogs) = HardenAllIdeProxies();
+                        foreach (var l in ideLogs) actions.Add(l);
+                    }
+                    else
+                    {
+                        // 端口未监听或处于直连时，自动清理各大 IDE 中残留的死代理，恢复纯净直连
+                        var (cleanCount, cleanLogs) = CleanDeadIdeProxies();
+                        foreach (var l in cleanLogs) actions.Add(l);
                     }
                 }
                 catch (Exception ex)
                 {
-                    actions.Add($"加固 Agent IDE 配置跳过: {ex.Message}");
+                    actions.Add($"治理 Agent IDE 配置跳过: {ex.Message}");
                 }
             }
 
@@ -675,6 +683,17 @@ public static class ProxyDoctor
                 actions.Add($"刷新 DNS 接口异常: {ex.Message}");
             }
 
+            // 步骤 8: 自动清理各大 IDE 中残留的死代理，让其全部恢复纯净直连
+            try
+            {
+                var (cleanCount, cleanLogs) = CleanDeadIdeProxies();
+                foreach (var l in cleanLogs) actions.Add(l);
+            }
+            catch (Exception ex)
+            {
+                actions.Add($"清理 IDE 残留代理跳过: {ex.Message}");
+            }
+
             return new ProxyRepairResult(
                 Succeeded: true,
                 BackupPath: backupPath,
@@ -729,9 +748,9 @@ public static class ProxyDoctor
         {
             if (key != null)
             {
-                WriteRegValue(sb, "ProxyEnable", key.GetValue("ProxyEnable"), key.GetValueKind("ProxyEnable"));
-                WriteRegValue(sb, "ProxyServer", key.GetValue("ProxyServer"), key.GetValueKind("ProxyServer"));
-                WriteRegValue(sb, "ProxyOverride", key.GetValue("ProxyOverride"), key.GetValueKind("ProxyOverride"));
+                SafeExportRegValue(sb, key, "ProxyEnable");
+                SafeExportRegValue(sb, key, "ProxyServer");
+                SafeExportRegValue(sb, key, "ProxyOverride");
             }
         }
 
@@ -747,6 +766,18 @@ public static class ProxyDoctor
         }
 
         File.WriteAllText(regFilePath, sb.ToString(), Encoding.Unicode);
+    }
+
+    private static void SafeExportRegValue(StringBuilder sb, RegistryKey key, string name)
+    {
+        try
+        {
+            var val = key.GetValue(name);
+            if (val == null) return;
+            var kind = key.GetValueKind(name);
+            WriteRegValue(sb, name, val, kind);
+        }
+        catch { }
     }
 
     private static void WriteRegValue(StringBuilder sb, string name, object? val, RegistryValueKind kind)
@@ -1050,6 +1081,65 @@ public static class ProxyDoctor
             catch (Exception ex)
             {
                 logs.Add($"加固 [{name}] 失败: {ex.Message}");
+            }
+        }
+
+        return (count, logs);
+    }
+
+    /// <summary>
+    /// 当本地代理已退出或端口闭塞时，自动清理各大 IDE 中残留的死代理 (http.proxy)，恢复为健康直连模式
+    /// </summary>
+    public static (int SucceededCount, List<string> Logs) CleanDeadIdeProxies()
+    {
+        var logs = new List<string>();
+        int count = 0;
+        var specs = GetKnownIdeSpecs();
+
+        foreach (var (name, path) in specs)
+        {
+            if (!File.Exists(path)) continue;
+
+            try
+            {
+                var json = File.ReadAllText(path);
+                var node = JsonNode.Parse(json);
+                if (node is JsonObject obj)
+                {
+                    bool modified = false;
+                    if (obj.ContainsKey("http.proxy"))
+                    {
+                        var proxyVal = obj["http.proxy"]?.ToString() ?? "";
+                        var (h, p) = ParseProxyEndpoint(proxyVal);
+                        // 如果是本地回环代理 (127.0.0.1 等)，检测其端口
+                        if (p.HasValue && IsLoopbackHost(h))
+                        {
+                            var (isAlive, _) = TestPort(h, p.Value);
+                            if (!isAlive)
+                            {
+                                obj.Remove("http.proxy");
+                                modified = true;
+                                logs.Add($"已清理 [{name}] 中残留的死代理 ({proxyVal})，恢复直连。");
+                            }
+                        }
+                    }
+
+                    if (obj.ContainsKey("mode") && obj["mode"]?.ToString() == "manual")
+                    {
+                        obj["mode"] = "system";
+                        modified = true;
+                    }
+
+                    if (modified)
+                    {
+                        File.WriteAllText(path, obj.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+                        count++;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logs.Add($"清理 [{name}] 残留代理跳过: {ex.Message}");
             }
         }
 
