@@ -400,11 +400,12 @@ public partial class CleanerPage : Page
 
     private void OpenFolder_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button btn && btn.Tag is string path)
+        if (sender is FrameworkElement fe && fe.Tag is string path && !string.IsNullOrWhiteSpace(path))
         {
             try
             {
-                string targetToOpen = Directory.Exists(path) ? path : (Path.GetDirectoryName(path) ?? path);
+                var expandedPath = Environment.ExpandEnvironmentVariables(path);
+                string targetToOpen = Directory.Exists(expandedPath) ? expandedPath : (Path.GetDirectoryName(expandedPath) ?? expandedPath);
                 if (Directory.Exists(targetToOpen))
                 {
                     System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo

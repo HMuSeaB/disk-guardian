@@ -129,6 +129,27 @@
                                 <TextBlock Text="{Binding Note}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/>
                                 <TextBlock Text="{Binding Rebuild}" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextWrapping="Wrap"/>
 
+                                <!-- 目标物理路径与一键定位打开 -->
+                                <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,2,0,0">
+                                    <FontIcon Glyph="&#xED25;" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding PrimaryPathDisplay}" 
+                                               FontSize="11" 
+                                               FontFamily="Consolas, Segoe UI"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                               VerticalAlignment="Center"
+                                               IsTextSelectionEnabled="True"
+                                               TextTrimming="CharacterEllipsis" 
+                                               MaxWidth="480"
+                                               ToolTipService.ToolTip="{Binding PrimaryPathDisplay}"/>
+                                    <HyperlinkButton Content="定位位置" 
+                                                     Click="OpenFolder_Click" 
+                                                     Tag="{Binding PrimaryPath}"
+                                                     Padding="4,0" 
+                                                     FontSize="11" 
+                                                     VerticalAlignment="Center"
+                                                     ToolTipService.ToolTip="在 Windows 文件资源管理器中打开此物理目录"/>
+                                </StackPanel>
+
                                 <!-- 多项目展开控制入口 -->
                                 <StackPanel Orientation="Horizontal" Spacing="10" Visibility="{Binding SubItemsVisibility}" Margin="0,4,0,0">
                                     <HyperlinkButton Padding="0" Click="ToggleExpand_Click">

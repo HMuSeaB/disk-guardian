@@ -62,6 +62,24 @@ public sealed class CleanerRuleRow : INotifyPropertyChanged
     public bool IsDiscover => Rule.Discover != null;
     public string TypeBadge => IsDiscover ? "D盘深层发现 (~30s)" : "快速缓存";
 
+    // 物理目标路径展示与定位
+    public string PrimaryPath
+    {
+        get
+        {
+            if (ScannedResult?.ExistingPaths?.Count > 0)
+                return ScannedResult.ExistingPaths[0];
+            if (ScannedResult?.ResolvedPaths?.Count > 0)
+                return ScannedResult.ResolvedPaths[0];
+            if (Rule.Paths != null && Rule.Paths.Count > 0)
+                return Environment.ExpandEnvironmentVariables(Rule.Paths[0]);
+            return string.Empty;
+        }
+    }
+
+    public bool HasPrimaryPath => !string.IsNullOrEmpty(PrimaryPath);
+    public string PrimaryPathDisplay => HasPrimaryPath ? PrimaryPath : (IsDiscover ? "多项目智能动态发现 (展开查看各路径)" : "未配置固定路径");
+
     // 智能分类识别与显示
     public string CategoryKey => DeduceCategoryKey(Id);
     public string CategoryName => DeduceCategoryName(CategoryKey);
@@ -257,6 +275,9 @@ public sealed class CleanerRuleRow : INotifyPropertyChanged
 
         RecalculateSelectedSize();
 
+        OnPropertyChanged(nameof(PrimaryPath));
+        OnPropertyChanged(nameof(PrimaryPathDisplay));
+        OnPropertyChanged(nameof(HasPrimaryPath));
         OnPropertyChanged(nameof(HasSubItems));
         OnPropertyChanged(nameof(SubItemsVisibility));
         OnPropertyChanged(nameof(ExpandedVisibility));
