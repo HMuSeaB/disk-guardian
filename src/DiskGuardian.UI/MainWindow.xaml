@@ -26,9 +26,11 @@
             </StackPanel>
         </Grid>
 
-        <!-- 核心导航容器 -->
+        <!-- 核心导航容器（紧凑纤细侧栏，将默认 320px 臃肿宽度收缩至 185px，释放主界面空间） -->
         <NavigationView x:Name="NavView" Grid.Row="1"
                         PaneDisplayMode="Auto"
+                        OpenPaneLength="185"
+                        CompactPaneLength="48"
                         IsBackButtonVisible="Collapsed"
                         IsSettingsVisible="False"
                         SelectionChanged="NavView_SelectionChanged">
