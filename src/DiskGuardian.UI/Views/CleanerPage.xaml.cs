@@ -58,11 +58,11 @@ public partial class CleanerPage : Page
         int containerCount = _allRules.Count(r => r.CategoryKey == "container");
 
         TabAll.Content = $"🌟 全部 ({allCount})";
-        TabDev.Content = $"💻 开发编译 ({devCount})";
-        TabGaming.Content = $"🎮 显卡游戏 ({gamingCount})";
-        TabApp.Content = $"💬 常用软件 ({appCount})";
-        TabSystem.Content = $"🪟 系统临时 ({systemCount})";
-        TabContainer.Content = $"🐳 虚拟容器 ({containerCount})";
+        TabDev.Content = $"💻 开发 ({devCount})";
+        TabGaming.Content = $"🎮 游戏 ({gamingCount})";
+        TabApp.Content = $"💬 软件 ({appCount})";
+        TabSystem.Content = $"🪟 系统 ({systemCount})";
+        TabContainer.Content = $"🐳 容器 ({containerCount})";
     }
 
     private void CategoryTab_Click(object sender, RoutedEventArgs e)

@@ -26,30 +26,28 @@
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
                 CornerRadius="8" Padding="14,10">
             <StackPanel Spacing="10">
-                <!-- 第一行：分类导航标签与即时搜索框 -->
-                <Grid ColumnSpacing="12">
+                <!-- 第一行：分类导航标签与即时搜索框（彻底移除 ScrollViewer，杜绝滑动条遮挡） -->
+                <Grid ColumnSpacing="10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- 分类标签按钮组 -->
-                    <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
-                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                            <Button x:Name="TabAll" Content="🌟 全部" Click="CategoryTab_Click" Tag="all" Style="{ThemeResource AccentButtonStyle}" Padding="10,5"/>
-                            <Button x:Name="TabDev" Content="💻 开发编译" Click="CategoryTab_Click" Tag="dev" Padding="10,5"/>
-                            <Button x:Name="TabGaming" Content="🎮 显卡游戏" Click="CategoryTab_Click" Tag="gaming" Padding="10,5"/>
-                            <Button x:Name="TabApp" Content="💬 常用软件" Click="CategoryTab_Click" Tag="app" Padding="10,5"/>
-                            <Button x:Name="TabSystem" Content="🪟 系统临时" Click="CategoryTab_Click" Tag="system" Padding="10,5"/>
-                            <Button x:Name="TabContainer" Content="🐳 虚拟容器" Click="CategoryTab_Click" Tag="container" Padding="10,5"/>
-                        </StackPanel>
-                    </ScrollViewer>
+                    <!-- 分类标签按钮组（自然平铺，完全无需横向滚动条） -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <Button x:Name="TabAll" Content="🌟 全部" Click="CategoryTab_Click" Tag="all" Style="{ThemeResource AccentButtonStyle}" Padding="8,5" FontSize="12"/>
+                        <Button x:Name="TabDev" Content="💻 开发" Click="CategoryTab_Click" Tag="dev" Padding="8,5" FontSize="12"/>
+                        <Button x:Name="TabGaming" Content="🎮 游戏" Click="CategoryTab_Click" Tag="gaming" Padding="8,5" FontSize="12"/>
+                        <Button x:Name="TabApp" Content="💬 软件" Click="CategoryTab_Click" Tag="app" Padding="8,5" FontSize="12"/>
+                        <Button x:Name="TabSystem" Content="🪟 系统" Click="CategoryTab_Click" Tag="system" Padding="8,5" FontSize="12"/>
+                        <Button x:Name="TabContainer" Content="🐳 容器" Click="CategoryTab_Click" Tag="container" Padding="8,5" FontSize="12"/>
+                    </StackPanel>
 
                     <!-- 搜索框 -->
                     <TextBox Grid.Column="1" x:Name="SearchBox" 
-                             PlaceholderText="🔍 搜索规则名称、路径、说明..." 
-                             TextChanged="SearchBox_TextChanged" Width="260"
-                             VerticalAlignment="Center"/>
+                             PlaceholderText="🔍 实时搜索规则..." 
+                             TextChanged="SearchBox_TextChanged" Width="190"
+                             VerticalAlignment="Center" FontSize="12"/>
                 </Grid>
 
                 <!-- 第二行：勾选操作工具栏 + 动态状态提示 + 扫描触发 -->
