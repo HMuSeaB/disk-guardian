@@ -1,53 +1,56 @@
-# ExplorerDoctor 功能落地与验证报告
+# 验证报告 (Walkthrough) - 任务栏图标与清理视图交互重塑
 
-## 1. 任务背景
-针对用户遇到的“Windows 11 现代多标签页与 Fluent 资源管理器偶尔或意外降级回退至 Windows 10 经典 Ribbon 功能区”痛点，将诊断与自愈能力作为核心模块 `ExplorerDoctor` 正式集成进 `DiskGuardian` 套件。
+## 1. 验证目标回顾
+1. **任务栏图标缺失修复**：
+   - 解决应用运行后在 Windows 任务栏显示为系统默认无图标白色方块的问题。
+2. **清理项选择与视图痛点治理**：
+   - 彻底解决“只能全选或选择L1，想单选一个项必须逐个取消几十个项”的痛点；
+   - 解决“平铺长列表项过多、视图一般、找项全靠上下翻找”的问题。
 
-## 2. 核心改动清单
+---
 
-| 模块 | 修改文件 | 核心变动内容 |
-| :--- | :--- | :--- |
-| **Core 诊断引擎** | `src/DiskGuardian.Core/Diagnostics/ExplorerDoctor.cs` | 新增 `ExplorerDoctor` 静态类，实现注册表现代命令栏阻断 (`CLSID {e2bf9676-...}`) 探测、`SeparateProcess` 冲突探测、管理员提权上下文感知、一键安全恢复与 `WM_SETTINGCHANGE` API 广播。 |
-| **CLI 命令行** | `src/DiskGuardian.Cli/Program.cs` | 增加 `--check-shell` 与 `--fix-shell` 命令行参数支持，结构化高亮输出外壳健康状态。 |
-| **WinUI 3 仪表盘** | `src/DiskGuardian.UI/Views/DashboardPage.xaml` | 在仪表盘新增【桌面外壳与资源管理器体检 (ExplorerDoctor)】高质感卡片，配备 4 宫格指标、状态徽章与底层取证折叠面板。 |
-| **UI 交互绑定** | `src/DiskGuardian.UI/Views/DashboardPage.xaml.cs` | 实现异步体检 `RefreshExplorerStatusAsync` 与带二次确认防误触的 `FixExplorer_Click`。 |
-| **双语项目门面** | `README.md` & `README_EN.md` | 在系统架构图、五大核心特性与 CLI 矩阵中同步更新 ExplorerDoctor 规范说明。 |
+## 2. 方案落地与代码变更核对
 
-## 3. 验证与测试结果
+### 任务栏与窗口图标双重保活
+- **构建输出配置**：在 `src/DiskGuardian.UI/DiskGuardian.UI.csproj` 中新增 `<Content Include="disk-guardian.ico"><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></Content>`，确保无论是调试运行还是发布到 `app/` 目录，图标物理文件 100% 存在；
+- **进程应用身份注册**：通过 P/Invoke 调用 Win32 `SetCurrentProcessExplicitAppUserModelID("HMuSeaB.DiskGuardian.UI")`，向 Windows Shell 声明独立应用身份，消除系统将其当成通用无身份主机窗口并降级为默认白标的机制；
+- **双重图标注入**：在 `MainWindow.xaml.cs` 中实现 `AppWindow.SetIcon` + Win32 `SendMessage(hwnd, WM_SETICON, ICON_BIG / ICON_SMALL, hIcon)`，彻底保障任务栏与窗口标题栏图标无死角渲染。
 
-### 1. 命令行体检 (`--check-shell`)
-```text
-=== disk-guardian 桌面外壳与资源管理器健康体检 (ExplorerDoctor) ===
+### 清理项选择体验升级
+- **【仅选此项】一键单选机制**：
+  - 在每一个规则卡片右侧新增【仅选此项】（Only Me）按钮；
+  - 单击即可瞬间取消其它所有勾选，仅单独保留当前选中项，实现“0步取消、一键单选”；
+- **全能控制矩阵**：
+  - 【仅选L1(推荐)】：快速重置为安全推荐勾选项；
+  - 【全选当前】：全选当前分类或搜索视图下的所有规则；
+  - 【反选】：一键反转勾选状态；
+  - 【清空选择】：一键全部取消勾选。
 
-【总体结论】: 系统外壳健康！当前处于纯正的 Windows 11 原生现代多标签页与 Fluent 界面。
+### 清理视图现代分类与即时搜索
+- **智能分类筛选条**：
+  - 🌟 **全部**：全局总览；
+  - 💻 **开发编译**：Go, Rust, Python, NPM, Cargo, NuGet, Gradle, Maven, Dotnet 等；
+  - 🎮 **显卡游戏**：NVIDIA DirectX / OpenGL 着色器缓存；
+  - 💬 **常用软件**：微信, QQ, 浏览器, IDE 等；
+  - 🪟 **系统临时**：Windows 临时文件, WER 错误报告；
+  - 🐳 **虚拟容器**：Docker Desktop, WSL。
+  - 各分类按钮实时显示规则数量（如 `💻 开发编译 (11)`、`🎮 显卡游戏 (2)`），高亮切换、毫秒级响应；
+- **即时搜索框 (SearchBox)**：
+  - 实时过滤规则名称、说明、路径或分类标签，输入“微”或“rust”瞬间呈现对应项，告别翻页。
 
---- 外壳与资源管理器核心指标 ---
-  * 系统内核版本:     Win11 (Build 26200)
-  * 当前外壳架构:     Windows 11 现代 Fluent 多标签页 (XAML)
-  * 现代Fluent命令栏: 正常放行 (Fluent 原生)
-  * 窗口多进程策略:   未开启 (单宿主共享)
-  * 运行权限环境:     标准用户权限 (正常)
+---
 
---- 底层排查诊断取证 ---
-  · [外壳纯净] 现代 Fluent 命令栏 CLSID 未被拦截，各项参数正常。
-  · [进程策略] 统一单进程宿主，标签页无缝承载。
+## 3. 测试验证结果
 
-【健康】资源管理器配置纯正，处于 Windows 11 原生多标签页与现代 Fluent 状态。
-```
+| 测试项 | 验证命令/操作 | 预期结果 | 实际结果 | 状态 |
+| :--- | :--- | :--- | :--- | :--- |
+| **项目全量编译** | `dotnet build src/DiskGuardian.UI/...` | 0 警告 0 错误 | 0 警告 0 错误 | **PASS** |
+| **硬禁区断言自检** | `dotnet run ... --check-rules` | 21 条断言全部通过 | 21/21 PASS | **PASS** |
+| **物理图标输出检验** | `Get-ChildItem ... -Filter *.ico` | 输出目录包含 `disk-guardian.ico` | 根目录与 `app/` 均包含有效 ico | **PASS** |
+| **全量打包流水线** | `.\build_release.ps1` | 生成两套极简 ZIP 包 | 生成桌面与 CLI 独立发布包 | **PASS** |
 
-### 2. 命令行修复 (`--fix-shell`)
-```text
-=== disk-guardian 恢复 Windows 11 原生资源管理器外壳 ===
+---
 
-[修复成功] 已执行以下安全恢复步骤:
-  ✓ 已向 Windows 桌面外壳广播 WM_SETTINGCHANGE 设置刷新事件。
-
-[生效说明]:
-  1. 已通过 Win32 API 广播外壳刷新通知（零黑框、绝不暴力杀 explorer.exe）。
-  2. 新打开的资源管理器窗口（Win + E）将即刻生效 Win11 现代标签页。
-  3. 若需当前旧窗口立即变更为新版，可在任务管理器中右键【Windows 资源管理器】点击【重新启动】。
-```
-
-### 3. 全工程构建自测
-- `DiskGuardian.sln`（包含 Core、Cli、UI、Launcher 全部 4 个工程）全量构建：**0 警告、0 错误**；
-- 21 项安全硬禁区断言自检：**100% 全部 PASS**。
+## 4. 产物清单
+- `dist/disk-guardian-winui3-win-x64.zip`：桌面端双击即用便携包；
+- `dist/disk-guardian-cli-win-x64.zip`：CLI 运维便携包。

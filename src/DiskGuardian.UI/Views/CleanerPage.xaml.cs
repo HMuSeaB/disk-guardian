@@ -14,8 +14,10 @@ namespace DiskGuardian.UI.Views;
 public partial class CleanerPage : Page
 {
     private readonly CleanerEngine _engine;
-    private readonly ObservableCollection<CleanerRuleRow> _ruleRows = new();
+    private readonly ObservableCollection<CleanerRuleRow> _allRules = new();
+    private readonly ObservableCollection<CleanerRuleRow> _filteredRules = new();
     private bool _isScanning = false;
+    private string _currentCategory = "all";
 
     public CleanerPage()
     {
@@ -28,22 +30,101 @@ public partial class CleanerPage : Page
 
     private void InitializeRuleList()
     {
-        _ruleRows.Clear();
+        _allRules.Clear();
         foreach (var rule in _engine.Config.Rules)
         {
             // 默认仅勾选 Level 1 快速无痛项，L2/L3 需用户手动确认勾选
             var row = new CleanerRuleRow(rule, isSelectedDefault: rule.Level == 1);
             row.SelectionChanged += (s, e) => UpdateTotal();
-            _ruleRows.Add(row);
+            _allRules.Add(row);
         }
 
-        RulesList.ItemsSource = _ruleRows;
+        // 更新各个分类标签上的统计数量
+        UpdateCategoryTabCounts();
+
+        // 绑定过滤集合
+        RulesList.ItemsSource = _filteredRules;
+        ApplyFilter();
         UpdateTotal();
+    }
+
+    private void UpdateCategoryTabCounts()
+    {
+        int allCount = _allRules.Count;
+        int devCount = _allRules.Count(r => r.CategoryKey == "dev");
+        int gamingCount = _allRules.Count(r => r.CategoryKey == "gaming");
+        int appCount = _allRules.Count(r => r.CategoryKey == "app");
+        int systemCount = _allRules.Count(r => r.CategoryKey == "system");
+        int containerCount = _allRules.Count(r => r.CategoryKey == "container");
+
+        TabAll.Content = $"🌟 全部 ({allCount})";
+        TabDev.Content = $"💻 开发编译 ({devCount})";
+        TabGaming.Content = $"🎮 显卡游戏 ({gamingCount})";
+        TabApp.Content = $"💬 常用软件 ({appCount})";
+        TabSystem.Content = $"🪟 系统临时 ({systemCount})";
+        TabContainer.Content = $"🐳 虚拟容器 ({containerCount})";
+    }
+
+    private void CategoryTab_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string tag)
+        {
+            _currentCategory = tag;
+
+            // 切换分类按钮高亮样式
+            var buttons = new[] { TabAll, TabDev, TabGaming, TabApp, TabSystem, TabContainer };
+            var accentStyle = (Style)Application.Current.Resources["AccentButtonStyle"];
+            var defaultStyle = (Style)Application.Current.Resources["DefaultButtonStyle"];
+
+            foreach (var b in buttons)
+            {
+                b.Style = (b == btn) ? accentStyle : defaultStyle;
+            }
+
+            ApplyFilter();
+        }
+    }
+
+    private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        var query = (SearchBox?.Text ?? "").Trim().ToLowerInvariant();
+
+        var matched = _allRules.Where(r =>
+        {
+            // 分类筛选
+            bool matchCat = _currentCategory == "all" || r.CategoryKey == _currentCategory;
+            if (!matchCat) return false;
+
+            // 搜索关键字筛选
+            if (string.IsNullOrEmpty(query)) return true;
+            return r.Name.ToLowerInvariant().Contains(query) ||
+                   r.Note.ToLowerInvariant().Contains(query) ||
+                   r.Id.ToLowerInvariant().Contains(query) ||
+                   r.CategoryName.ToLowerInvariant().Contains(query) ||
+                   (r.Rule.Paths != null && r.Rule.Paths.Any(p => p.ToLowerInvariant().Contains(query)));
+        }).ToList();
+
+        _filteredRules.Clear();
+        foreach (var item in matched)
+        {
+            _filteredRules.Add(item);
+        }
+
+        int selectedTotal = _allRules.Count(r => r.IsSelected);
+        if (!_isScanning)
+        {
+            ScanStatusText.Text = $"当前视图 {_filteredRules.Count} 项 (全局已勾选 {selectedTotal} 项)，请点击【开始扫描】";
+        }
     }
 
     private void UpdateTotal()
     {
-        var readyRows = _ruleRows
+        var readyRows = _allRules
             .Where(r => r.IsSelected && r.ScannedResult != null && r.ScannedResult.Status == "ready")
             .ToList();
 
@@ -54,57 +135,66 @@ public partial class CleanerPage : Page
         TotalFilesText.Text = files > 0 ? $"(约 {files:N0} 个文件/目录)" : "";
     }
 
-    private void LevelCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    // 一键单选：彻底解决用户必须一个个取消其它项的痛点
+    private void SelectOnlyThis_Click(object sender, RoutedEventArgs e)
     {
-        if (LevelCombo == null || _ruleRows.Count == 0 || _isScanning) return;
-        int level = LevelCombo.SelectedIndex + 1;
-
-        // 仅切换预设勾选项，坚决不自动触发任何后台扫描
-        foreach (var row in _ruleRows)
+        if (_isScanning) return;
+        if (sender is FrameworkElement fe && fe.DataContext is CleanerRuleRow targetRow)
         {
-            row.IsSelected = row.Level <= level;
+            foreach (var row in _allRules)
+            {
+                row.IsSelected = (row == targetRow);
+            }
+            UpdateTotal();
+            ScanStatusText.Text = $"已单独选中:【{targetRow.Name}】，其它项已全部取消";
         }
-
-        int selectedCount = _ruleRows.Count(r => r.IsSelected);
-        ScanStatusText.Text = $"已勾选 Level {level} 范围共 {selectedCount} 项，请点击【开始扫描】";
-        UpdateTotal();
     }
 
     private void SelectL1_Click(object sender, RoutedEventArgs e)
     {
         if (_isScanning) return;
-        foreach (var row in _ruleRows) row.IsSelected = row.Level == 1;
+        foreach (var row in _allRules) row.IsSelected = row.Level == 1;
         UpdateTotal();
-        ScanStatusText.Text = "已勾选仅 Level 1 快速缓存项";
+        int count = _allRules.Count(r => r.IsSelected);
+        ScanStatusText.Text = $"已勾选推荐 Level 1 安全缓存项 (共 {count} 项)";
     }
 
-    private void SelectAll_Click(object sender, RoutedEventArgs e)
+    private void SelectCurrentView_Click(object sender, RoutedEventArgs e)
     {
         if (_isScanning) return;
-        foreach (var row in _ruleRows) row.IsSelected = true;
+        foreach (var row in _filteredRules) row.IsSelected = true;
         UpdateTotal();
-        ScanStatusText.Text = $"已全选共 {_ruleRows.Count} 项";
+        ScanStatusText.Text = $"已全选当前视图共 {_filteredRules.Count} 项";
+    }
+
+    private void InvertSelection_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isScanning) return;
+        foreach (var row in _filteredRules) row.IsSelected = !row.IsSelected;
+        UpdateTotal();
+        int count = _allRules.Count(r => r.IsSelected);
+        ScanStatusText.Text = $"已反选当前视图，全局当前勾选 {count} 项";
     }
 
     private void DeselectAll_Click(object sender, RoutedEventArgs e)
     {
         if (_isScanning) return;
-        foreach (var row in _ruleRows) row.IsSelected = false;
+        foreach (var row in _allRules) row.IsSelected = false;
         UpdateTotal();
-        ScanStatusText.Text = "已清空所有勾选项";
+        ScanStatusText.Text = "已清空所有勾选项，可直接点击单项进行快速选择";
     }
 
     private async void ScanButton_Click(object sender, RoutedEventArgs e)
     {
         if (_isScanning) return;
 
-        var toScan = _ruleRows.Where(r => r.IsSelected).ToList();
+        var toScan = _allRules.Where(r => r.IsSelected).ToList();
         if (toScan.Count == 0)
         {
             var tip = new ContentDialog
             {
                 Title = "未选择扫描项",
-                Content = "请至少勾选一个需要扫描的规则选项。",
+                Content = "请至少勾选一个需要扫描的规则选项。\n您可以点击规则右侧的【仅选此项】进行单独扫描，或使用上方快捷预设。",
                 CloseButtonText = "确定",
                 XamlRoot = this.XamlRoot
             };
@@ -131,7 +221,7 @@ public partial class CleanerPage : Page
                 UpdateTotal();
             }
 
-            long totalScannedBytes = _ruleRows
+            long totalScannedBytes = _allRules
                 .Where(r => r.IsSelected && r.ScannedResult != null && r.ScannedResult.Status == "ready")
                 .Sum(r => r.SizeBytes);
             ScanStatusText.Text = $"扫描完成！共检查 {toScan.Count} 项，发现可清理 {CleanerEngine.HumanSize(totalScannedBytes)}";
@@ -163,7 +253,7 @@ public partial class CleanerPage : Page
     {
         if (_isScanning) return;
 
-        var selected = _ruleRows
+        var selected = _allRules
             .Where(r => r.IsSelected && r.ScannedResult != null && r.ScannedResult.Status == "ready" && r.SizeBytes > 0)
             .ToList();
 
@@ -241,7 +331,6 @@ public partial class CleanerPage : Page
             {
                 if (row.SubItemRows.Count > 0)
                 {
-                    // 如果全部被勾选且目录已全被清空
                     bool allCleared = row.SubItemRows.All(s => s.IsSelected && !Directory.Exists(s.Path));
                     if (allCleared)
                     {
@@ -257,7 +346,6 @@ public partial class CleanerPage : Page
                     }
                     else
                     {
-                        // 用户保留了部分子项目，重新轻量扫描刷新该规则保留的体积
                         var freshResult = _engine.ScanRule(row.Rule);
                         row.ApplyResult(freshResult);
                     }

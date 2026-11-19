@@ -1,46 +1,60 @@
-# 代理退出残留净化与纯净直连模式 (Pure Direct / Game Mode) 实施计划
+# 实施计划 - 任务栏图标修复与清理项视图选择重构
 
-## 1. 用户痛点与背景
-用户日常正常使用 FlClash（科学上网与 AI 开发）。但在需要退出 FlClash 打游戏时，由于：
-1. FlClash 点击右上角 X 默认仅最小化到托盘，未真正退出；
-2. FlClash 安装了后台 Windows 服务（`FlClashHelperService` / `FlClashCore.exe`），后台常驻运行；
-3. FlClash 退出时未重置注册表 `ProxyEnable=0`，系统代理死死指向 `127.0.0.1:7890`，导致游戏被注入代理或防作弊拦截；
-4. DiskGuardian 现有 ProxyDoctor 看到 7890 正在监听，误判为“正常活跃代理”，缺乏“一键强力切断代理、彻底清空残留”的主动直连功能。
+解决用户反馈的两大痛点：
+1. **任务栏图标缺失**：程序运行后在 Windows 任务栏显示为系统默认无图标白方块；
+2. **清理项选择与视图问题**：只能全选或L1，单选某一项需要逐个取消勾选极其麻烦；平铺列表项过多、缺乏分类和搜索、翻找费劲。
 
-## 2. 核心架构设计
+---
+
+## 一、方案架构设计
 
 ```mermaid
-graph TD
-    User[用户操作] -->|正常开发/翻墙| FlClash[正常运行 FlClash]
-    User -->|打游戏/断开代理| DG[DiskGuardian 工具箱]
-    
-    DG --> Detect[ProxyDoctor 进程与残留感知]
-    Detect --> CheckClients[探测 FlClash.exe / FlClashCore.exe / clash-verge / mihomo]
-    Detect --> CheckReg[探测 ProxyEnable=1 与二进制标志]
-    
-    DG --> PureDirect["一键切回纯净直连模式 (Pure Direct)"]
-    PureDirect --> Step1["1. 优雅终止/退出残留代理客户端 (不破坏用户配置)"]
-    PureDirect --> Step2["2. 注册表 ProxyEnable=0, ProxyServer=''"]
-    PureDirect --> Step3["3. 清洗 DefaultConnectionSettings 二进制标志 (0x01 直连)"]
-    PureDirect --> Step4["4. 清理用户环境变量 (HTTP_PROXY / HTTPS_PROXY)"]
-    PureDirect --> Step5["5. WinINET API 广播刷新 (绝不强杀 explorer.exe)"]
-    PureDirect --> Step6["6. 刷新系统 DNS 缓存 (ipconfig /flushdns)"]
+flowchart TD
+    subgraph Issue1["问题一: 任务栏与窗口图标修复"]
+        A1["DiskGuardian.UI.csproj"] -->|"配置 CopyToOutputDirectory"| B1["disk-guardian.ico 拷贝至输出目录"]
+        A2["Win32 P/Invoke"] -->|"SetCurrentProcessExplicitAppUserModelID"| B2["注册独立应用身份，避免默认白标"]
+        A3["MainWindow.xaml.cs"] -->|"双重注入: AppWindow.SetIcon + WM_SETICON"| B3["任务栏与标题栏大/小图标 100% 渲染"]
+    end
+
+    subgraph Issue2["问题二: 清理项视图与选择交互革新"]
+        C1["规则分类引擎 CategoryHelper"] -->|"智能推导规则所属大类"| D1["开发编译 / 显卡游戏 / 常用应用 / 系统临时 / 虚拟容器"]
+        C2["分类标签栏 + 实时搜索框"] -->|"毫秒级筛选"| D2["分类一键切换 + 搜索过滤，告别长列表翻找"]
+        C3["单项极速选择机制"] -->|"每项提供【仅选此项】按钮"| D3["点击单项【仅选】，自动取消其它所有项"]
+        C4["快捷选择工具矩阵"] -->|"全选 / 清空 / 反选 / 仅L1"| D4["随心所欲自由批量勾选"]
+    end
 ```
 
-## 3. 具体实现步骤
-1. **Core 层 (`ProxyDoctor.cs`)**：
-   - 增加代理客户端进程与系统服务探测（`DetectProxyProcesses()`）；
-   - 在 `ProxyDiagnosisResult` 中增加 `RunningProxyProcesses` 字段；
-   - 编写 `SwitchToPureDirect(bool terminateProxyClients, ...)` 方法，支持一键清空代理、终止残留、广播刷新与 DNS flush，并严格保护用户配置与订阅文件不被删除；
-2. **UI 仪表盘 (`DashboardPage.xaml` & `DashboardPage.xaml.cs`)**：
-   - 仪表盘 ProxyDoctor 顶部控制栏增加醒目的 **【🎮 切换纯净直连 (打游戏/彻底无残留)】** 按钮；
-   - 在 4 宫格或状态栏展示当前检测到的后台代理客户端（例如 `FlClash.exe (PID: 2444) 托盘常驻`）；
-   - 点击切换直连时弹出确认框（可勾选是否同时终止后台 FlClash 托盘进程），执行后即时刷新；
-3. **CLI 命令行 (`Program.cs`)**：
-   - 增加 `--direct` / `--force-direct` 参数，支持终端一键切回纯净直连；
-4. **编译验证与全套测试**：
-   - Core / Cli / UI 编译验证；
-   - 21 项安全自测 100% 通过；
-5. **为用户提供清晰指导**：
-   - 告知用户 FlClash 客户端内部的“防残留配置”（关闭按钮行为设置为退出应用）；
-   - 告知用户如何使用新功能一键切断代理无缝打游戏。
+---
+
+## 二、拟改动文件清单
+
+1. `src/DiskGuardian.UI/DiskGuardian.UI.csproj`：
+   - 添加 `disk-guardian.ico` 输出拷贝配置；
+2. `src/DiskGuardian.UI/MainWindow.xaml.cs`：
+   - 引入 `SetCurrentProcessExplicitAppUserModelID`；
+   - 强化 Win32 原生 `WM_SETICON`（`ICON_BIG` 与 `ICON_SMALL`）以及 `AppWindow.SetIcon` 双重兜底；
+3. `src/DiskGuardian.UI/ViewModels/CleanerRuleRow.cs`：
+   - 增加分类（Category）推断与分类徽章属性；
+   - 增加单项【仅选此项】指令或事件通知；
+4. `src/DiskGuardian.UI/Views/CleanerPage.xaml`：
+   - 顶部工具栏重构：分类筛选标签组（Segmented/Pivot/Chips）+ 实时搜索框（AutoSuggestBox / TextBox）；
+   - 快捷勾选工具条：【仅选推荐(L1)】、【全选】、【反选】、【清空(全部取消)】；
+   - 规则行卡片设计升级：新增【仅选】快速操作按钮、分类图标徽章、视觉层次升级；
+5. `src/DiskGuardian.UI/Views/CleanerPage.xaml.cs`：
+   - 实现分类过滤与实时搜索联动逻辑；
+   - 实现【仅选此项】、【反选】等操作逻辑；
+6. `README.md` / `README_EN.md`：
+   - 更新清理模块与界面交互说明。
+
+---
+
+## 三、验证与测试规划
+1. **任务栏图标验证**：
+   - 编译生成运行，检查 Windows 任务栏是否准确显示盾牌/磁盘图标，彻底告别默认空白方块；
+2. **清理项选择验证**：
+   - 点击任何一项的【仅选】，验证是否仅该项被选中，其它所有项全部取消；
+   - 点击【清空】，验证所有项全部取消勾选；
+   - 点击【反选】，验证勾选状态瞬间翻转；
+3. **分类与搜索验证**：
+   - 点击“显卡游戏”，验证是否仅显示 NVIDIA 着色器项；
+   - 输入“微信”，验证是否毫秒级过滤出微信缓存规则。

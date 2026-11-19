@@ -62,6 +62,50 @@ public sealed class CleanerRuleRow : INotifyPropertyChanged
     public bool IsDiscover => Rule.Discover != null;
     public string TypeBadge => IsDiscover ? "D盘深层发现 (~30s)" : "快速缓存";
 
+    // 智能分类识别与显示
+    public string CategoryKey => DeduceCategoryKey(Id);
+    public string CategoryName => DeduceCategoryName(CategoryKey);
+    public string CategoryBadge => $"{GetCategoryIcon(CategoryKey)} {CategoryName}";
+
+    public static string DeduceCategoryKey(string id)
+    {
+        var lower = id.ToLowerInvariant();
+        if (lower.Contains("nvidia") || lower.Contains("shader") || lower.Contains("dxcache") || lower.Contains("glcache"))
+            return "gaming";
+        if (lower.Contains("go") || lower.Contains("rust") || lower.Contains("python") || lower.Contains("pip") ||
+            lower.Contains("wheel") || lower.Contains("mypy") || lower.Contains("uv") || lower.Contains("npm") ||
+            lower.Contains("pnpm") || lower.Contains("yarn") || lower.Contains("cargo") || lower.Contains("gradle") ||
+            lower.Contains("maven") || lower.Contains("nuget") || lower.Contains("dotnet"))
+            return "dev";
+        if (lower.Contains("docker") || lower.Contains("wsl"))
+            return "container";
+        if (lower.Contains("wechat") || lower.Contains("qq") || lower.Contains("vscode") || lower.Contains("cursor"))
+            return "app";
+        if (lower.Contains("temp") || lower.Contains("error-reporting") || lower.Contains("system") || lower.Contains("windows"))
+            return "system";
+        return "other";
+    }
+
+    public static string DeduceCategoryName(string key) => key switch
+    {
+        "dev" => "开发编译",
+        "gaming" => "显卡游戏",
+        "app" => "常用软件",
+        "system" => "系统临时",
+        "container" => "虚拟容器",
+        _ => "其他规则"
+    };
+
+    public static string GetCategoryIcon(string key) => key switch
+    {
+        "dev" => "💻",
+        "gaming" => "🎮",
+        "app" => "💬",
+        "system" => "🪟",
+        "container" => "🐳",
+        _ => "📁"
+    };
+
     public ObservableCollection<CleanerSubItemRow> SubItemRows { get; } = new();
     public bool HasSubItems => SubItemRows.Count > 1;
     public Visibility SubItemsVisibility => HasSubItems ? Visibility.Visible : Visibility.Collapsed;
@@ -171,7 +215,13 @@ public sealed class CleanerRuleRow : INotifyPropertyChanged
     public PlanRow? ScannedResult { get; private set; }
 
     public event EventHandler? SelectionChanged;
+    public event EventHandler? SelectOnlyRequested;
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    public void RequestSelectOnly()
+    {
+        SelectOnlyRequested?.Invoke(this, EventArgs.Empty);
+    }
 
     public CleanerRuleRow(RuleItem rule, bool isSelectedDefault = true)
     {

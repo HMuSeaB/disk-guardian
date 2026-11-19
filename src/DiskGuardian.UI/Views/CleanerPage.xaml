@@ -6,7 +6,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Grid RowSpacing="16">
+    <Grid RowSpacing="14">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -21,45 +21,68 @@
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
         </StackPanel>
 
-        <!-- 选项预设与扫描控制栏 -->
+        <!-- 选项预设、分类导航与扫描控制栏 -->
         <Border Grid.Row="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
                 CornerRadius="8" Padding="14,10">
-            <Grid ColumnSpacing="10">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+            <StackPanel Spacing="10">
+                <!-- 第一行：分类导航标签与即时搜索框 -->
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
 
-                <!-- 左侧：级别筛选与快捷预设 -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                    <TextBlock Text="预设级别:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="13"/>
-                    <ComboBox x:Name="LevelCombo" SelectedIndex="0" SelectionChanged="LevelCombo_SelectionChanged" Width="135">
-                        <ComboBoxItem Content="Level 1 (常规)"/>
-                        <ComboBoxItem Content="Level 2 (推荐)"/>
-                        <ComboBoxItem Content="Level 3 (完整)"/>
-                    </ComboBox>
+                    <!-- 分类标签按钮组 -->
+                    <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <Button x:Name="TabAll" Content="🌟 全部" Click="CategoryTab_Click" Tag="all" Style="{ThemeResource AccentButtonStyle}" Padding="10,5"/>
+                            <Button x:Name="TabDev" Content="💻 开发编译" Click="CategoryTab_Click" Tag="dev" Padding="10,5"/>
+                            <Button x:Name="TabGaming" Content="🎮 显卡游戏" Click="CategoryTab_Click" Tag="gaming" Padding="10,5"/>
+                            <Button x:Name="TabApp" Content="💬 常用软件" Click="CategoryTab_Click" Tag="app" Padding="10,5"/>
+                            <Button x:Name="TabSystem" Content="🪟 系统临时" Click="CategoryTab_Click" Tag="system" Padding="10,5"/>
+                            <Button x:Name="TabContainer" Content="🐳 虚拟容器" Click="CategoryTab_Click" Tag="container" Padding="10,5"/>
+                        </StackPanel>
+                    </ScrollViewer>
 
-                    <Button Content="仅L1" Click="SelectL1_Click" Padding="10,5"/>
-                    <Button Content="全选" Click="SelectAll_Click" Padding="10,5"/>
-                    <Button Content="清空" Click="DeselectAll_Click" Padding="10,5"/>
-                </StackPanel>
+                    <!-- 搜索框 -->
+                    <TextBox Grid.Column="1" x:Name="SearchBox" 
+                             PlaceholderText="🔍 搜索规则名称、路径、说明..." 
+                             TextChanged="SearchBox_TextChanged" Width="260"
+                             VerticalAlignment="Center"/>
+                </Grid>
 
-                <!-- 中间：自适应状态提示（自动弹性伸缩与字符省略，绝不挤压右侧按钮） -->
-                <TextBlock Grid.Column="1" x:Name="ScanStatusText" 
-                           Text="已就绪，请勾选需要扫描的项" 
-                           VerticalAlignment="Center" HorizontalAlignment="Right"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12"
-                           TextTrimming="CharacterEllipsis" MaxLines="1" Margin="4,0,8,0"/>
+                <!-- 第二行：勾选操作工具栏 + 动态状态提示 + 扫描触发 -->
+                <Grid ColumnSpacing="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
 
-                <!-- 右侧：最高优先级触发按钮与进度环（固定靠右锁定，任何宽度下永远完整可见） -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <ProgressRing x:Name="ScanRing" IsActive="False" Width="18" Height="18"/>
-                    <Button x:Name="ScanButton" Content="开始扫描勾选项" Click="ScanButton_Click" 
-                            Style="{ThemeResource AccentButtonStyle}" Padding="14,6"/>
-                </StackPanel>
-            </Grid>
+                    <!-- 快捷勾选控制矩阵 -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <Button Content="仅选L1(推荐)" Click="SelectL1_Click" Padding="10,5" ToolTipService.ToolTip="仅勾选 Level 1 安全纯缓存项"/>
+                        <Button Content="全选当前" Click="SelectCurrentView_Click" Padding="10,5" ToolTipService.ToolTip="全选当前分类或搜索视图下的所有规则"/>
+                        <Button Content="反选" Click="InvertSelection_Click" Padding="10,5" ToolTipService.ToolTip="反转当前视图下所有项的勾选状态"/>
+                        <Button Content="清空选择" Click="DeselectAll_Click" Padding="10,5" ToolTipService.ToolTip="取消所有已勾选项，便于单选"/>
+                    </StackPanel>
+
+                    <!-- 中间：自适应状态提示 -->
+                    <TextBlock Grid.Column="1" x:Name="ScanStatusText" 
+                               Text="已就绪，请勾选需要扫描的项" 
+                               VerticalAlignment="Center" HorizontalAlignment="Right"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12"
+                               TextTrimming="CharacterEllipsis" MaxLines="1" Margin="4,0,8,0"/>
+
+                    <!-- 右侧：扫描按钮与环 -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <ProgressRing x:Name="ScanRing" IsActive="False" Width="18" Height="18"/>
+                        <Button x:Name="ScanButton" Content="开始扫描勾选项" Click="ScanButton_Click" 
+                                Style="{ThemeResource AccentButtonStyle}" Padding="14,6"/>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
         </Border>
 
         <!-- 规则清单列表 -->
@@ -71,7 +94,7 @@
                 <DataTemplate>
                     <StackPanel Padding="14,12" Spacing="8">
                         <!-- 顶层主行卡片 -->
-                        <Grid ColumnSpacing="16">
+                        <Grid ColumnSpacing="14">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
@@ -83,15 +106,25 @@
                                       VerticalAlignment="Center"/>
 
                             <!-- 规则详情 -->
-                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14"/>
+                                    
+                                    <!-- 智能分类标签 -->
+                                    <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="6,2">
+                                        <TextBlock Text="{Binding CategoryBadge}" FontSize="11" Foreground="{ThemeResource AccentAAFillColorDefaultBrush}"/>
+                                    </Border>
+
+                                    <!-- 级别徽章 -->
                                     <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="6,2">
                                         <TextBlock Text="{Binding LevelDisplay}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                     </Border>
+                                    
+                                    <!-- 类型徽章 -->
                                     <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="6,2">
                                         <TextBlock Text="{Binding TypeBadge}" FontSize="11" Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
                                     </Border>
+
                                     <TextBlock Text="{Binding SizeHint}" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" 
                                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                 </StackPanel>
@@ -110,11 +143,19 @@
                                 </StackPanel>
                             </StackPanel>
 
-                            <!-- 容量与扫描状态 -->
-                            <StackPanel Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="4" MinWidth="110">
-                                <TextBlock Text="{Binding SizeDisplay}" FontWeight="Bold" FontSize="15" HorizontalAlignment="Right"/>
-                                <TextBlock Text="{Binding StatusDisplay}" FontSize="11" HorizontalAlignment="Right" 
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <!-- 右侧操作与状态区 -->
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                <!-- 一键单选此项（彻底解决必须一个个取消其它项的烦恼） -->
+                                <Button Content="仅选此项" Click="SelectOnlyThis_Click" 
+                                        ToolTipService.ToolTip="取消其它所有勾选，仅单独保留勾选此项"
+                                        Padding="10,5" FontSize="12"/>
+
+                                <!-- 容量与扫描状态 -->
+                                <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="3" MinWidth="95">
+                                    <TextBlock Text="{Binding SizeDisplay}" FontWeight="Bold" FontSize="15" HorizontalAlignment="Right"/>
+                                    <TextBlock Text="{Binding StatusDisplay}" FontSize="11" HorizontalAlignment="Right" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                </StackPanel>
                             </StackPanel>
                         </Grid>
 

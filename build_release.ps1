@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 
 Write-Host "=== DiskGuardian 一键构建与极简打包流水线 ===" -ForegroundColor Cyan
 
@@ -54,7 +54,7 @@ if (Test-Path disk-guardian.ico) {
     Copy-Item disk-guardian.ico "$winuiPkg/app/" -Force
 }
 
-@"
+$readmeContent = @"
 ========================================================================
   DiskGuardian (磁盘守护者) - Windows 原生系统与空间守护工具
 ========================================================================
@@ -71,7 +71,8 @@ if (Test-Path disk-guardian.ico) {
   - Windows 幽灵代理诊断与安全修复 (ProxyDoctor)：免重启 WinINET 广播刷新，绝不杀 explorer.exe。
   - Windows 资源管理器外壳守护 (ExplorerDoctor)：诊断与一键安全恢复 Windows 11 现代多标签页原生界面。
 ========================================================================
-"@ | Out-File -FilePath "$winuiPkg/使用说明.txt" -Encoding utf8
+"@
+$readmeContent | Out-File -FilePath "$winuiPkg/使用说明.txt" -Encoding utf8
 
 # 清理无用 pdb 调试符号
 Get-ChildItem -Path $winuiPkg -Recurse -Filter *.pdb | Remove-Item -Force

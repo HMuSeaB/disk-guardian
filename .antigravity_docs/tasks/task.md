@@ -1,22 +1,19 @@
-# 任务看板：代理退出残留净化与纯净游戏直连模式 (Pure Direct)
+# 任务看板 (Task Board)
 
-## 当前任务目标
-支持用户在正常使用 FlClash 的同时，在需要退出代理打游戏时，彻底消除一切后台托盘残留、系统服务死锁与注册表代理注入，提供一键切断代理无缝直连的保障。
-
-## 进度看板
-- [x] **Core 诊断与直连引擎研发**:
-  - [x] 在 `ProxyDoctor.cs` 中实现主流代理进程探测（FlClash, FlClashCore, FlClashHelperService, clash-verge, mihomo 等）；
-  - [x] 在 `ProxyDiagnosisResult` 中加入 `RunningClients` 识别展示；
-  - [x] 实现 `SwitchToPureDirect`：强制清理系统代理、清洗二进制 Flags、广播 WinINET 变更并调用 `DnsFlushResolverCache` 刷新系统 DNS；
-  - [x] 安全保障：绝不修改或删除用户的 FlClash 规则、节点和订阅，保留日常科学上网能力。
-- [x] **CLI 运维命令扩展**:
-  - [x] 增加 `--direct` / `--force-direct` 一键切回纯净直连命令；
-  - [x] 在 `--check-proxy` 中增加对后台常驻代理进程的结构化列表与直连指引输出。
-- [x] **UI 仪表盘集成**:
-  - [x] 在 `DashboardPage.xaml` 顶部加入【🎮 切回纯净直连 (游戏模式)】按钮；
-  - [x] 在取证折叠面板中展示后台常驻代理软件；
-  - [x] 绑定带二次确认与即时生效反馈的纯净直连交互。
-- [x] **工程验证与文档**:
-  - [x] 全方案编译 0 警告 0 错误；
-  - [x] 21 项安全自测 100% 全部通过；
-  - [x] 更新 `README.md` 与 `README_EN.md`。
+- [x] **任务一：任务栏与窗口图标双重保活修复** <!-- id: 1 -->
+  - [x] 在 `DiskGuardian.UI.csproj` 中配置 `disk-guardian.ico` 拷贝至输出目录 <!-- id: 1.1 -->
+  - [x] 在 `MainWindow.xaml.cs` 中注入 `SetCurrentProcessExplicitAppUserModelID` <!-- id: 1.2 -->
+  - [x] 实现 `AppWindow.SetIcon` 与 Win32 `WM_SETICON` 双重兜底 <!-- id: 1.3 -->
+- [x] **任务二：规则分类与单项快速选择逻辑实现 (ViewModel & Helper)** <!-- id: 2 -->
+  - [x] 实现规则分类识别引擎（开发构建、显卡游戏、常用应用、系统临时、虚拟容器） <!-- id: 2.1 -->
+  - [x] 在 `CleanerRuleRow` 中集成分类属性、分类徽章与单选触发事件 <!-- id: 2.2 -->
+- [x] **任务三：CleanerPage 界面重塑 (XAML & Code-behind)** <!-- id: 3 -->
+  - [x] 顶部添加分类标签栏 (分类选择 Chips/Tabs) 与实时搜索框 <!-- id: 3.1 -->
+  - [x] 完善操作工具条：新增【反选】、【全选当前分类】、【清空选择】、【全选】 <!-- id: 3.2 -->
+  - [x] 规则卡片右侧新增【仅选此项】(Only) 单击按钮，一键单选无需逐个取消 <!-- id: 3.3 -->
+  - [x] 优化卡片布局与视觉层级（Fluent 药丸标签、平滑收起/展开） <!-- id: 3.4 -->
+- [x] **任务四：全量编译构建与自检测试** <!-- id: 4 -->
+  - [x] 运行 `dotnet build` 确保 0 警告 0 错误 <!-- id: 4.1 -->
+  - [x] 运行 Core 21 项安全硬禁区断言自检确保 100% PASS <!-- id: 4.2 -->
+- [x] **任务五：生成验证报告与更新文档** <!-- id: 5 -->
+  - [x] 编写 `.antigravity_docs/walkthroughs/walkthrough.md` <!-- id: 5.1 -->
