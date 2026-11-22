@@ -17,6 +17,7 @@ public partial class DashboardPage : Page
         RefreshDrives();
         _ = RefreshProxyStatusAsync();
         _ = RefreshExplorerStatusAsync();
+        _ = RefreshBrowserStatusAsync();
     }
 
     private void RefreshDrives()
@@ -388,5 +389,156 @@ public partial class DashboardPage : Page
         }
 
         await RefreshExplorerStatusAsync();
+    }
+
+    private async Task RefreshBrowserStatusAsync()
+    {
+        try
+        {
+            var report = await Task.Run(() =>
+            {
+                var r = BrowserDoctor.Diagnose("msedge");
+                if (!r.IsRunning)
+                {
+                    var chromeReport = BrowserDoctor.Diagnose("chrome");
+                    if (chromeReport.IsRunning) return chromeReport;
+                }
+                return r;
+            });
+
+            BrowserSummaryText.Text = report.SummaryMessage;
+
+            // 1. 顶部指示灯与 Badge
+            if (report.HealthRating == "critical")
+            {
+                BrowserStatusIcon.Glyph = "\uE7BA"; // Error / Warning
+                BrowserStatusIcon.Foreground = (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"];
+                BrowserBadgeText.Text = "严重超载";
+            }
+            else if (report.HealthRating == "warning")
+            {
+                BrowserStatusIcon.Glyph = "\uE7BA"; // Warning
+                BrowserStatusIcon.Foreground = (Brush)Application.Current.Resources["SystemFillColorCautionBrush"];
+                BrowserBadgeText.Text = "显存膨胀";
+            }
+            else if (report.HealthRating == "healthy")
+            {
+                BrowserStatusIcon.Glyph = "\uE73E"; // Checkmark
+                BrowserStatusIcon.Foreground = (Brush)Application.Current.Resources["SystemFillColorSuccessBrush"];
+                BrowserBadgeText.Text = "运行极佳";
+            }
+            else
+            {
+                BrowserStatusIcon.Glyph = "\uE774"; // Globe
+                BrowserStatusIcon.Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+                BrowserBadgeText.Text = "未运行";
+            }
+
+            // 2. 4 宫格指标
+            // Tile 1: 运行实例
+            BrowserInstanceValueText.Text = report.IsRunning ? $"{report.DisplayName} ({report.TotalProcessCount} 进程)" : "未检测到运行";
+            BrowserInstanceSubText.Text = report.IsRunning ? $"主进程 PID: {report.MainProcessId}" : "可直接启动浏览器使用";
+
+            // Tile 2: 总物理内存
+            BrowserMemValueText.Text = report.IsRunning ? report.TotalMemoryHuman : "--";
+            BrowserMemSubText.Text = report.IsRunning ? $"活跃网页 {report.RendererCount} / 扩展 {report.ExtensionCount}" : "无常驻进程";
+
+            // Tile 3: GPU 显存
+            BrowserGpuValueText.Text = report.IsRunning ? report.GpuMemoryHuman : "--";
+            BrowserGpuSubText.Text = report.IsRunning ? (report.IsGpuBloated ? "⚠️ 显存膨胀卡顿 (建议释放)" : "图形通道运行健康") : "无显存占用";
+
+            // Tile 4: 性能健康评级
+            BrowserHealthValueText.Text = report.HealthRatingDisplay;
+            BrowserHealthSubText.Text = report.IsRunning ? (report.IsGpuBloated ? "显卡渲染通道负载偏高" : "内存与显存配比良好") : "就绪";
+
+            // 3. 详细子进程与日志
+            if (report.TopProcesses.Count > 0)
+            {
+                var lines = report.TopProcesses.Select(p =>
+                    $"· PID {p.Id,-6} | {p.WorkingSetHuman,-10} | {p.TypeDisplay} {(string.IsNullOrEmpty(p.Detail) ? "" : $"[{p.Detail}]")}");
+                BrowserDetailProcessesText.Text = string.Join("\n", lines);
+            }
+            else
+            {
+                BrowserDetailProcessesText.Text = "暂无活跃子进程。";
+            }
+
+            BrowserDetailLogsText.Text = report.Details.Count > 0 ? string.Join("\n", report.Details) : "无额外诊断日志";
+        }
+        catch (Exception ex)
+        {
+            BrowserSummaryText.Text = $"体检失败: {ex.Message}";
+        }
+    }
+
+    private async void RefreshBrowser_Click(object sender, RoutedEventArgs e)
+    {
+        await RefreshBrowserStatusAsync();
+    }
+
+    private async void ReleaseGpu_Click(object sender, RoutedEventArgs e)
+    {
+        ReleaseGpuButton.IsEnabled = false;
+        try
+        {
+            var (ok, msg, freed) = await Task.Run(() => BrowserDoctor.ReleaseGpuMemory("msedge"));
+            var tip = new ContentDialog
+            {
+                Title = ok ? "⚡ 显存释放成功" : "显存释放提示",
+                Content = msg,
+                CloseButtonText = "确定",
+                XamlRoot = this.XamlRoot
+            };
+            await tip.ShowAsync();
+        }
+        catch (Exception ex)
+        {
+            var tip = new ContentDialog
+            {
+                Title = "释放显存遇到异常",
+                Content = ex.Message,
+                CloseButtonText = "确定",
+                XamlRoot = this.XamlRoot
+            };
+            await tip.ShowAsync();
+        }
+        finally
+        {
+            ReleaseGpuButton.IsEnabled = true;
+            await RefreshBrowserStatusAsync();
+        }
+    }
+
+    private async void TrimBrowser_Click(object sender, RoutedEventArgs e)
+    {
+        TrimBrowserButton.IsEnabled = false;
+        try
+        {
+            var (ok, msg, freed) = await Task.Run(() => BrowserDoctor.TrimMemory("msedge"));
+            var tip = new ContentDialog
+            {
+                Title = ok ? "🧹 内存修剪完成" : "内存修剪提示",
+                Content = msg,
+                CloseButtonText = "确定",
+                XamlRoot = this.XamlRoot
+            };
+            await tip.ShowAsync();
+        }
+        catch (Exception ex)
+        {
+            var tip = new ContentDialog
+            {
+                Title = "内存修剪遇到异常",
+                Content = ex.Message,
+                CloseButtonText = "确定",
+                XamlRoot = this.XamlRoot
+            };
+            await tip.ShowAsync();
+        }
+        finally
+        {
+            TrimBrowserButton.IsEnabled = true;
+            await RefreshBrowserStatusAsync();
+        }
     }
 }

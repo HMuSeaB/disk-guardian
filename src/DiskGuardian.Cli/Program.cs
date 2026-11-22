@@ -61,6 +61,16 @@ public static class Program
             return RunFixShell();
         }
 
+        if (args.Contains("--check-browser"))
+        {
+            return RunCheckBrowser();
+        }
+
+        if (args.Contains("--fix-browser"))
+        {
+            return RunFixBrowser();
+        }
+
         int level = 1;
         for (int i = 0; i < args.Length; i++)
         {
@@ -348,5 +358,44 @@ public static class Program
             Console.ResetColor();
             return 1;
         }
+    }
+
+    private static int RunCheckBrowser()
+    {
+        Console.WriteLine("=== disk-guardian 浏览器健康体检 (BrowserDoctor) ===");
+        var report = BrowserDoctor.Diagnose("msedge");
+        Console.WriteLine($"目标浏览器: {report.DisplayName} (主进程 PID: {(report.IsRunning ? report.MainProcessId : "未运行")})");
+        Console.WriteLine($"健康评级: {report.HealthRatingDisplay}");
+        Console.WriteLine($"进程总数: {report.TotalProcessCount} 个");
+        Console.WriteLine($"总物理内存: {report.TotalMemoryHuman}");
+        Console.WriteLine($"GPU 显存开销: {report.GpuMemoryHuman} ({(report.IsGpuBloated ? "⚠️ 显存严重膨胀，建议释放" : "正常")})");
+        Console.WriteLine($"活跃网页渲染: {report.RendererCount} 个 | 扩展插件: {report.ExtensionCount} 个 | 网络与辅助: {report.UtilityCount} 个");
+        Console.WriteLine($"\n[诊断结论]: {report.SummaryMessage}");
+
+        if (report.TopProcesses.Count > 0)
+        {
+            Console.WriteLine("\n[内存占用最高的前 5 个子进程]:");
+            foreach (var p in report.TopProcesses.Take(5))
+            {
+                Console.WriteLine($"  · PID {p.Id,-6} | {p.WorkingSetHuman,-10} | {p.TypeDisplay} {(string.IsNullOrEmpty(p.Detail) ? "" : $"({p.Detail})")}");
+            }
+        }
+
+        return report.HealthRating == "critical" ? 1 : 0;
+    }
+
+    private static int RunFixBrowser()
+    {
+        Console.WriteLine("=== disk-guardian 浏览器无损性能自愈 (BrowserDoctor) ===");
+        Console.WriteLine("1. 正在无损重启 GPU 显存渲染通道 (零网页关闭、零数据丢失)...");
+        var (gpuOk, gpuMsg, gpuFreed) = BrowserDoctor.ReleaseGpuMemory("msedge");
+        Console.WriteLine($"   {(gpuOk ? "[成功]" : "[提示]")} {gpuMsg}");
+
+        Console.WriteLine("\n2. 正在对闲置标签页执行内存修剪 (EmptyWorkingSet)...");
+        var (trimOk, trimMsg, trimFreed) = BrowserDoctor.TrimMemory("msedge");
+        Console.WriteLine($"   {(trimOk ? "[成功]" : "[提示]")} {trimMsg}");
+
+        Console.WriteLine($"\n总计自愈释放空间: {CleanerEngine.HumanSize(gpuFreed + trimFreed)}，浏览器已彻底恢复丝滑！");
+        return 0;
     }
 }

@@ -279,6 +279,107 @@
                 </StackPanel>
             </Border>
 
+            <!-- 浏览器性能与显存体检卡片 (BrowserDoctor) -->
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                    CornerRadius="8" Padding="20">
+                <StackPanel Spacing="16">
+                    <!-- 顶层卡片 Header -->
+                    <Grid ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Spacing="6" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                <FontIcon x:Name="BrowserStatusIcon" Glyph="&#xE774;" FontSize="18" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
+                                <TextBlock Text="浏览器性能与显存医生 (BrowserDoctor)" FontWeight="SemiBold" FontSize="16"/>
+                                <Border x:Name="BrowserStatusBadge" Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="8,2">
+                                    <TextBlock x:Name="BrowserBadgeText" Text="检测中..." FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                </Border>
+                            </StackPanel>
+                            <TextBlock x:Name="BrowserSummaryText" Text="正在探测 Chromium 浏览器进程树、GPU 渲染通道与显存开销..." 
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="13"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Button Content="重新体检" Click="RefreshBrowser_Click"/>
+                            <Button x:Name="ReleaseGpuButton" Content="⚡ 释放 GPU 显存" Click="ReleaseGpu_Click" 
+                                    Style="{ThemeResource AccentButtonStyle}" ToolTipService.ToolTip="秒级安全重启 GPU 渲染通道（零网页丢失、不关窗口，瞬间释放显存与掉帧卡顿）"/>
+                            <Button x:Name="TrimBrowserButton" Content="🧹 压缩闲置内存" Click="TrimBrowser_Click" 
+                                    ToolTipService.ToolTip="修剪闲置内存碎片，立即降低物理内存占用"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- 4 宫格核心配置指标面板 (Metric Tiles) -->
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Tile 1: 运行实例 -->
+                        <Border Grid.Column="0" Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                                CornerRadius="6" Padding="12,10">
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="运行实例" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="BrowserInstanceValueText" Text="--" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock x:Name="BrowserInstanceSubText" Text="检测中" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Tile 2: 内存总开销 -->
+                        <Border Grid.Column="1" Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                                CornerRadius="6" Padding="12,10">
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="总物理内存" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="BrowserMemValueText" Text="--" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock x:Name="BrowserMemSubText" Text="检测中" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Tile 3: GPU 显存渲染通道 -->
+                        <Border Grid.Column="2" Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                                CornerRadius="6" Padding="12,10">
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="GPU 显存通道" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="BrowserGpuValueText" Text="--" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock x:Name="BrowserGpuSubText" Text="检测中" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Tile 4: 性能健康评级 -->
+                        <Border Grid.Column="3" Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                                CornerRadius="6" Padding="12,10">
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="性能健康评级" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="BrowserHealthValueText" Text="--" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock x:Name="BrowserHealthSubText" Text="评估中" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- 底层技术排查与取证折叠面板 (Expander) -->
+                    <Expander Header="查看子进程分布与内存大户 Top 8" HorizontalAlignment="Stretch">
+                        <StackPanel Spacing="8" Padding="4,8">
+                            <TextBlock Text="内存占用最高的前 8 个子进程明细:" FontSize="12" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="BrowserDetailProcessesText" Text="无数据" 
+                                       FontFamily="Consolas, Segoe UI" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="11" TextWrapping="Wrap"/>
+                            <TextBlock Text="诊断与优化日志:" FontSize="12" FontWeight="SemiBold" Margin="0,4,0,0"/>
+                            <TextBlock x:Name="BrowserDetailLogsText" Text="等待体检" 
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}" FontSize="11" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Expander>
+                </StackPanel>
+            </Border>
+
             <!-- 磁盘容量卡片组 -->
             <Grid ColumnSpacing="16">
                 <Grid.ColumnDefinitions>

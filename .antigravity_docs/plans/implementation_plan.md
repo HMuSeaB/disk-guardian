@@ -1,60 +1,46 @@
-# 实施计划 - 任务栏图标修复与清理项视图选择重构
+# 实施计划 - 浏览器性能与显存医生 (BrowserDoctor)
 
-解决用户反馈的两大痛点：
-1. **任务栏图标缺失**：程序运行后在 Windows 任务栏显示为系统默认无图标白方块；
-2. **清理项选择与视图问题**：只能全选或L1，单选某一项需要逐个取消勾选极其麻烦；平铺列表项过多、缺乏分类和搜索、翻找费劲。
+## 一、需求背景与目标
+针对用户反馈的“Edge 浏览器忽然变卡、内存飙升至 3.5GB、GPU 进程膨胀近 900MB”等实际痛点，在 DiskGuardian 中深度集成 **BrowserDoctor (浏览器健康与性能医生)**，为 Windows 桌面用户提供免关网页、零数据丢失的无损性能自愈能力。
 
 ---
 
-## 一、方案架构设计
+## 二、架构与技术方案
 
 ```mermaid
 flowchart TD
-    subgraph Issue1["问题一: 任务栏与窗口图标修复"]
-        A1["DiskGuardian.UI.csproj"] -->|"配置 CopyToOutputDirectory"| B1["disk-guardian.ico 拷贝至输出目录"]
-        A2["Win32 P/Invoke"] -->|"SetCurrentProcessExplicitAppUserModelID"| B2["注册独立应用身份，避免默认白标"]
-        A3["MainWindow.xaml.cs"] -->|"双重注入: AppWindow.SetIcon + WM_SETICON"| B3["任务栏与标题栏大/小图标 100% 渲染"]
+    subgraph BrowserDoctor["BrowserDoctor 核心诊断与自愈引擎"]
+        A["探测 Chromium 进程 (msedge/chrome)"] --> B["解析命令行 --type (gpu-process/renderer/extension)"]
+        B --> C["统计总内存、GPU 显存、各子进程分布"]
+        C --> D["评估健康评级 (healthy / warning / bloated)"]
     end
 
-    subgraph Issue2["问题二: 清理项视图与选择交互革新"]
-        C1["规则分类引擎 CategoryHelper"] -->|"智能推导规则所属大类"| D1["开发编译 / 显卡游戏 / 常用应用 / 系统临时 / 虚拟容器"]
-        C2["分类标签栏 + 实时搜索框"] -->|"毫秒级筛选"| D2["分类一键切换 + 搜索过滤，告别长列表翻找"]
-        C3["单项极速选择机制"] -->|"每项提供【仅选此项】按钮"| D3["点击单项【仅选】，自动取消其它所有项"]
-        C4["快捷选择工具矩阵"] -->|"全选 / 清空 / 反选 / 仅L1"| D4["随心所欲自由批量勾选"]
+    subgraph HealingActions["无损自愈能力矩阵"]
+        E["PurgeGpuProcess"] -->|"安全重启 gpu-process 子进程"| F["零网页丢失，释放 800MB+ 显存卡顿"]
+        G["TrimWorkingSet"] -->|"Win32 EmptyWorkingSet 批处理"| H["毫秒级压缩闲置内存碎片"]
+    end
+
+    subgraph Presentation["多端呈现"]
+        I["DashboardPage.xaml"] -->|"4 宫格指标卡 + 释放按钮"| J["GUI 视觉交互"]
+        K["Program.cs (CLI)"] -->|"--check-browser / --fix-browser"| L["运维命令行交互"]
     end
 ```
 
 ---
 
-## 二、拟改动文件清单
-
-1. `src/DiskGuardian.UI/DiskGuardian.UI.csproj`：
-   - 添加 `disk-guardian.ico` 输出拷贝配置；
-2. `src/DiskGuardian.UI/MainWindow.xaml.cs`：
-   - 引入 `SetCurrentProcessExplicitAppUserModelID`；
-   - 强化 Win32 原生 `WM_SETICON`（`ICON_BIG` 与 `ICON_SMALL`）以及 `AppWindow.SetIcon` 双重兜底；
-3. `src/DiskGuardian.UI/ViewModels/CleanerRuleRow.cs`：
-   - 增加分类（Category）推断与分类徽章属性；
-   - 增加单项【仅选此项】指令或事件通知；
-4. `src/DiskGuardian.UI/Views/CleanerPage.xaml`：
-   - 顶部工具栏重构：分类筛选标签组（Segmented/Pivot/Chips）+ 实时搜索框（AutoSuggestBox / TextBox）；
-   - 快捷勾选工具条：【仅选推荐(L1)】、【全选】、【反选】、【清空(全部取消)】；
-   - 规则行卡片设计升级：新增【仅选】快速操作按钮、分类图标徽章、视觉层次升级；
-5. `src/DiskGuardian.UI/Views/CleanerPage.xaml.cs`：
-   - 实现分类过滤与实时搜索联动逻辑；
-   - 实现【仅选此项】、【反选】等操作逻辑；
-6. `README.md` / `README_EN.md`：
-   - 更新清理模块与界面交互说明。
-
----
-
-## 三、验证与测试规划
-1. **任务栏图标验证**：
-   - 编译生成运行，检查 Windows 任务栏是否准确显示盾牌/磁盘图标，彻底告别默认空白方块；
-2. **清理项选择验证**：
-   - 点击任何一项的【仅选】，验证是否仅该项被选中，其它所有项全部取消；
-   - 点击【清空】，验证所有项全部取消勾选；
-   - 点击【反选】，验证勾选状态瞬间翻转；
-3. **分类与搜索验证**：
-   - 点击“显卡游戏”，验证是否仅显示 NVIDIA 着色器项；
-   - 输入“微信”，验证是否毫秒级过滤出微信缓存规则。
+## 三、文件改动计划
+1. **核心库**：新建 `src/DiskGuardian.Core/Diagnostics/BrowserDoctor.cs`
+   - 进程类型识别、内存与 CPU 汇总；
+   - `PurgeGpuProcess`：精准定位 `--type=gpu-process` 并执行安全无损重启；
+   - `TrimWorkingSet`：P/Invoke `psapi.dll!EmptyWorkingSet`，批量压缩物理内存；
+2. **UI 仪表盘**：修改 `src/DiskGuardian.UI/Views/DashboardPage.xaml` 与 `DashboardPage.xaml.cs`
+   - 新增【🌐 浏览器性能与显存医生 (BrowserDoctor)】卡片；
+   - 4 宫格核心指标：运行实例、总内存开销、GPU 显存开销、健康评级；
+   - 一键自愈操作：【⚡ 释放 GPU 显存】、【🧹 压缩闲置内存】、【重新体检】；
+   - 展开区展示高占用进程 Top 5；
+3. **CLI 运维端**：修改 `src/DiskGuardian.Cli/Program.cs`
+   - 增加 `--check-browser` 与 `--fix-browser` 指令；
+4. **测试与文档**：
+   - 全量编译 0 警告 0 错误；
+   - 更新任务看板与验证报告；
+   - **严格遵守约定**：本地修改自检完成后向用户汇报，**绝不擅自发包**！
