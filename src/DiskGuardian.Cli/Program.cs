@@ -61,6 +61,11 @@ public static class Program
             return RunFixShell();
         }
 
+        if (args.Contains("--reset-snipping"))
+        {
+            return RunResetSnipping();
+        }
+
         if (args.Contains("--check-browser"))
         {
             return RunCheckBrowser();
@@ -305,6 +310,7 @@ public static class Program
         Console.WriteLine($"  * 当前外壳架构:     {report.ShellArchitecture}");
         Console.WriteLine($"  * 现代Fluent命令栏: {report.BlockedStatusDisplay}");
         Console.WriteLine($"  * 窗口多进程策略:   {report.SeparateProcessDisplay}");
+        Console.WriteLine($"  * 快捷截图工具:     {report.SnippingStatusDisplay}");
         Console.WriteLine($"  * 运行权限环境:     {report.IntegrityStatusDisplay}");
 
         if (report.Details.Count > 0)
@@ -397,5 +403,25 @@ public static class Program
 
         Console.WriteLine($"\n总计自愈释放空间: {CleanerEngine.HumanSize(gpuFreed + trimFreed)}，浏览器已彻底恢复丝滑！");
         return 0;
+    }
+
+    private static int RunResetSnipping()
+    {
+        Console.WriteLine("=== disk-guardian 快捷截图工具一键重置 (SnippingTool) ===");
+        var (ok, count, msg) = ExplorerDoctor.ResetSnippingTool();
+        if (ok)
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"[成功] {msg}");
+            Console.ResetColor();
+            return 0;
+        }
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"[失败] {msg}");
+            Console.ResetColor();
+            return 1;
+        }
     }
 }

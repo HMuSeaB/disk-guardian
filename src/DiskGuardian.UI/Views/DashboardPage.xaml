@@ -182,8 +182,10 @@
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="13"/>
                         </StackPanel>
 
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <Button Content="重新体检" Click="RefreshExplorer_Click"/>
+                            <Button Content="⚡ 一键重置截图" Click="ResetSnipping_Click" 
+                                    ToolTipService.ToolTip="清理后台堆积的 SnippingTool 僵死进程，释放剪贴板与屏幕捕获锁，秒解快捷键截图卡死"/>
                             <Button x:Name="FixExplorerButton" Content="一键恢复 Win11 原生" Click="FixExplorer_Click" 
                                     Style="{ThemeResource AccentButtonStyle}"/>
                         </StackPanel>
@@ -231,14 +233,14 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Tile 4: 运行权限环境 -->
+                        <!-- Tile 4: 快捷截图通道 (Win+Shift+S) -->
                         <Border Grid.Column="3" Background="{ThemeResource LayerFillColorDefaultBrush}"
                                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
                                 CornerRadius="6" Padding="12,10">
                             <StackPanel Spacing="3">
-                                <TextBlock Text="运行权限与环境" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                <TextBlock x:Name="ExplorerIntegrityValueText" Text="--" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                <TextBlock x:Name="ExplorerIntegritySubText" Text="分析中" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="快捷截图通道 (Win+Shift+S)" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="ExplorerSnippingValueText" Text="--" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock x:Name="ExplorerSnippingSubText" Text="检测中" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis"/>
                             </StackPanel>
                         </Border>
                     </Grid>
@@ -256,6 +258,7 @@
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Windows 内核版本:" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
@@ -269,6 +272,9 @@
 
                                 <TextBlock Grid.Row="3" Grid.Column="0" Text="当前会话运行权限:" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 <TextBlock x:Name="DetailExplorerIntegrityText" Grid.Row="3" Grid.Column="1" Text="--" FontSize="12"/>
+
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="快捷截图工具运行状态:" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="DetailExplorerSnippingText" Grid.Row="4" Grid.Column="1" Text="--" FontSize="12"/>
                             </Grid>
 
                             <TextBlock Text="取证分析日志与修复建议:" FontSize="12" FontWeight="SemiBold" Margin="0,4,0,0"/>

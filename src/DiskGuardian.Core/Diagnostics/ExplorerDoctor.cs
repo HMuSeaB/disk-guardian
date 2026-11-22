@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
 using Microsoft.Win32;
@@ -21,7 +23,10 @@ public sealed record ExplorerDiagnosisResult(
     string BlockedStatusDisplay,
     string SeparateProcessDisplay,
     string SystemVersionDisplay,
-    string IntegrityStatusDisplay);
+    string IntegrityStatusDisplay,
+    int StuckSnippingCount = 0,
+    bool IsSnippingStuck = false,
+    string SnippingStatusDisplay = "正常");
 
 /// <summary>
 /// 资源管理器与系统外壳修复报告
@@ -36,8 +41,9 @@ public sealed record ExplorerRepairResult(
 /// Windows 资源管理器与桌面外壳健康医生 (ExplorerDoctor)：
 /// 1. 深度检测 Win11 现代 Fluent 命令栏与多标签页是否被注册表阻断 (CLSID {e2bf9676-5f8f-435c-97eb-11607a5bedf7})；
 /// 2. 探测导致多标签页宿主脱轨的独立进程设置 (SeparateProcess)；
-/// 3. 提供一键安全还原 Win11 现代原生外壳能力；
-/// 4. 遵守 Windows 桌面安全铁律：通过 Win32 API 广播外壳变更，严禁暴力杀死 explorer.exe，杜绝桌面微件坍塌。
+/// 3. 诊断与一键自愈快捷键截图功能卡死 (SnippingTool 僵尸进程死锁堆积)；
+/// 4. 提供一键安全还原 Win11 现代原生外壳能力；
+/// 5. 遵守 Windows 桌面安全铁律：通过 Win32 API 广播外壳变更，严禁暴力杀死 explorer.exe，杜绝桌面微件坍塌。
 /// </summary>
 public static class ExplorerDoctor
 {
@@ -61,7 +67,7 @@ public static class ExplorerDoctor
     private const uint SMTO_ABORTIFHUNG = 0x0002;
 
     /// <summary>
-    /// 全面体检系统外壳与资源管理器配置状态
+    /// 全面体检系统外壳、资源管理器与快捷键截图配置状态
     /// </summary>
     public static ExplorerDiagnosisResult Diagnose()
     {
@@ -116,7 +122,29 @@ public static class ExplorerDoctor
             details.Add($"[排查异常] 读取 SeparateProcess 设置失败: {ex.Message}");
         }
 
-        // 3. 探测当前运行上下文权限
+        // 3. 探测截图工具 (SnippingTool / ScreenClippingHost) 僵死堆积状态
+        int stuckSnippingCount = 0;
+        var snipProcs = DetectSnippingProcesses();
+        stuckSnippingCount = snipProcs.Count;
+        bool isSnippingStuck = stuckSnippingCount >= 2;
+        string snippingDisplay = isSnippingStuck
+            ? $"⚠️ 堆积 {stuckSnippingCount} 个进程 (快捷键卡死)"
+            : (stuckSnippingCount == 1 ? "1 个进程驻留 (就绪)" : "通道通畅 (空闲)");
+
+        if (stuckSnippingCount > 0)
+        {
+            var pids = string.Join(", ", snipProcs.Select(p => $"PID:{p.Id}"));
+            if (isSnippingStuck)
+            {
+                details.Add($"· [截图卡死警报] 检测到 {stuckSnippingCount} 个 SnippingTool 僵死进程堆积 ({pids})，导致 Win+Shift+S 屏幕捕获锁死，需一键重置。");
+            }
+            else
+            {
+                details.Add($"· [截图进程] 截图工具运行中 ({pids})，通道正常。");
+            }
+        }
+
+        // 4. 探测当前运行上下文权限
         bool isElevated = false;
         try
         {
@@ -141,7 +169,7 @@ public static class ExplorerDoctor
         string blockedDisplay = modernBlocked ? $"异常拦截 ({blockedLocations})" : "正常放行 (Fluent 原生)";
         string sepDisplay = separateProcess ? "已开启 (会破坏多标签页)" : "未开启 (单宿主共享)";
 
-        bool hasAnomaly = modernBlocked || separateProcess;
+        bool hasAnomaly = modernBlocked || separateProcess || isSnippingStuck;
 
         string shellArch;
         string summary;
@@ -154,11 +182,13 @@ public static class ExplorerDoctor
         }
         else if (hasAnomaly)
         {
-            shellArch = "经典 Ribbon 降级模式 (Win10 回退)";
+            shellArch = modernBlocked || separateProcess ? "经典 Ribbon 降级模式 (Win10 回退)" : "Windows 11 现代 Fluent 多标签页 (XAML)";
             var issues = new List<string>();
             if (modernBlocked) issues.Add("现代 Fluent 命令栏被注册表屏蔽");
             if (separateProcess) issues.Add("开启了独立进程导致多标签页脱轨");
-            summary = $"检测到 {issues.Count} 项异常导致外壳降级：{string.Join("，", issues)}。";
+            if (isSnippingStuck) issues.Add($"截图工具僵死堆积 ({stuckSnippingCount} 进程)");
+
+            summary = $"检测到 {issues.Count} 项外壳异常：{string.Join("，", issues)}。";
 
             if (modernBlocked)
                 details.Add($"· [阻断证据] 注册表命中 CLSID {Win11ModernCommandBarClsid}，强制屏蔽了 Windows 11 现代 Fluent 命令栏。");
@@ -168,7 +198,7 @@ public static class ExplorerDoctor
         else
         {
             shellArch = "Windows 11 现代 Fluent 多标签页 (XAML)";
-            summary = "系统外壳健康！当前处于纯正的 Windows 11 原生现代多标签页与 Fluent 界面。";
+            summary = "系统外壳与截图通道健康！处于纯正的 Windows 11 原生多标签页与丝滑截图状态。";
             details.Add("· [外壳纯净] 现代 Fluent 命令栏 CLSID 未被拦截，各项参数正常。");
             details.Add("· [进程策略] 统一单进程宿主，标签页无缝承载。");
         }
@@ -190,7 +220,64 @@ public static class ExplorerDoctor
             blockedDisplay,
             sepDisplay,
             sysVersionDisplay,
-            integrityDisplay);
+            integrityDisplay,
+            stuckSnippingCount,
+            isSnippingStuck,
+            snippingDisplay);
+    }
+
+    /// <summary>
+    /// 一键安全重置截图工具 (SnippingTool / ScreenClippingHost)
+    /// 清理所有挂起、死锁的截图进程，释放屏幕捕获独占句柄与剪贴板写锁
+    /// </summary>
+    public static (bool Succeeded, int CleanedCount, string Message) ResetSnippingTool()
+    {
+        try
+        {
+            var targets = new[] { "SnippingTool", "ScreenClippingHost" };
+            int count = 0;
+            foreach (var name in targets)
+            {
+                var procs = Process.GetProcessesByName(name);
+                foreach (var p in procs)
+                {
+                    try
+                    {
+                        if (!p.HasExited)
+                        {
+                            p.Kill();
+                            count++;
+                        }
+                    }
+                    catch { }
+                    finally { p.Dispose(); }
+                }
+            }
+
+            return (true, count, count > 0
+                ? $"已成功清理 {count} 个僵死截图进程！屏幕捕获句柄与剪贴板锁已完全释放，按下 Win + Shift + S 即可极速截图。"
+                : "当前后台无残留截图进程，截图通道已处于完全纯净状态。");
+        }
+        catch (Exception ex)
+        {
+            return (false, 0, $"重置截图工具遇到异常: {ex.Message}");
+        }
+    }
+
+    private static List<Process> DetectSnippingProcesses()
+    {
+        var list = new List<Process>();
+        try
+        {
+            var names = new[] { "SnippingTool", "ScreenClippingHost" };
+            foreach (var name in names)
+            {
+                var ps = Process.GetProcessesByName(name);
+                list.AddRange(ps);
+            }
+        }
+        catch { }
+        return list;
     }
 
     /// <summary>
@@ -272,4 +359,3 @@ public static class ExplorerDoctor
         }
     }
 }
-

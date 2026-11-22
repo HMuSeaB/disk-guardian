@@ -320,14 +320,15 @@ public partial class DashboardPage : Page
             ExplorerSeparateProcessValueText.Text = report.SeparateProcessEnabled ? "已开启 (冲突)" : "未开启 (推荐)";
             ExplorerSeparateProcessSubText.Text = report.SeparateProcessEnabled ? "多标签页宿主脱轨" : "单进程多标签共享";
 
-            ExplorerIntegrityValueText.Text = report.IntegrityStatusDisplay;
-            ExplorerIntegritySubText.Text = report.SystemVersionDisplay;
+            ExplorerSnippingValueText.Text = report.IsSnippingStuck ? $"⚠️ 堆积 {report.StuckSnippingCount} 个" : (report.StuckSnippingCount == 1 ? "1 进程驻留 (就绪)" : "通道通畅 (空闲)");
+            ExplorerSnippingSubText.Text = report.IsSnippingStuck ? "快捷键卡死 (需重置)" : "无死锁残留";
 
             // 3. 折叠面板取证细节
             DetailExplorerSysVerText.Text = report.SystemVersionDisplay;
             DetailExplorerClsidText.Text = report.BlockedStatusDisplay;
             DetailExplorerSepProcText.Text = report.SeparateProcessDisplay;
             DetailExplorerIntegrityText.Text = report.IntegrityStatusDisplay;
+            DetailExplorerSnippingText.Text = report.SnippingStatusDisplay;
 
             if (report.Details.Count > 0)
             {
@@ -347,6 +348,37 @@ public partial class DashboardPage : Page
     private async void RefreshExplorer_Click(object sender, RoutedEventArgs e)
     {
         await RefreshExplorerStatusAsync();
+    }
+
+    private async void ResetSnipping_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var (ok, count, msg) = await Task.Run(() => ExplorerDoctor.ResetSnippingTool());
+            var tip = new ContentDialog
+            {
+                Title = ok ? "⚡ 截图通道重置完成" : "重置提示",
+                Content = msg,
+                CloseButtonText = "确定",
+                XamlRoot = this.XamlRoot
+            };
+            await tip.ShowAsync();
+        }
+        catch (Exception ex)
+        {
+            var tip = new ContentDialog
+            {
+                Title = "重置遇到异常",
+                Content = ex.Message,
+                CloseButtonText = "确定",
+                XamlRoot = this.XamlRoot
+            };
+            await tip.ShowAsync();
+        }
+        finally
+        {
+            await RefreshExplorerStatusAsync();
+        }
     }
 
     private async void FixExplorer_Click(object sender, RoutedEventArgs e)
