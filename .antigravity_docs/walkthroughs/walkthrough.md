@@ -39,5 +39,14 @@
 
 ---
 
-## 4. 发版控制声明
-遵照用户规范：**本轮所有研发与测试工作已完成，仅向用户汇报成果与细节，坚决不擅自打 tag 发包，静待用户指令！**
+---
+
+## 4. 正式发版交付 (v1.0.10)
+
+在收到用户明确的【发包】指令后，已完成 `v1.0.10` 的全流程发布与云端构建交付：
+- **Git 标签**：`v1.0.10`
+- **构建状态**：GitHub Actions 云端流水线构建全部通过 (`success`)
+- **Release 页面**：[v1.0.10 릴리스](https://github.com/HMuSeaB/disk-guardian/releases/tag/v1.0.10)
+- **交付包清单**：
+  1. `disk-guardian-winui3-win-x64.zip`：Windows 原生 WinUI 3 客户端完整发布包（内含零黑框原生启动器 `DiskGuardian.exe`，集成 BrowserDoctor 显存与内存自愈、SnippingTool 截图死锁一键恢复、Explorer 路径定位按钮）；
+  2. `disk-guardian-cli-win-x64.zip`：CLI 极速运维工具发布包（支持 `--check-browser`、`--fix-browser`、`--check-shell` 与 `--reset-snipping`）。
