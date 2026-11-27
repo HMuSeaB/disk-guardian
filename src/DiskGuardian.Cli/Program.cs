@@ -86,6 +86,11 @@ public static class Program
             return RunResetInput();
         }
 
+        if (args.Contains("--check-startup"))
+        {
+            return RunCheckStartup();
+        }
+
         int level = 1;
         for (int i = 0; i < args.Length; i++)
         {
@@ -466,5 +471,24 @@ public static class Program
         var (ok, _, msg) = DeviceDoctor.ResetInputHosts();
         Console.WriteLine($"{(ok ? "[成功]" : "[提示]")} {msg}");
         return ok ? 0 : 1;
+    }
+
+    private static int RunCheckStartup()
+    {
+        Console.WriteLine("=== disk-guardian 8维启动项全量体检 (StartupDoctor) ===");
+        var report = StartupDoctor.Scan();
+        Console.WriteLine(report.SummaryMessage);
+        Console.WriteLine($"网络栈联动诊断: {ProxyDoctor.CheckNetworkStackHealth().Summary}");
+
+        var optimizable = report.Items.Where(i => i.RiskLevel == "SafeToDisable" && i.IsEnabled).ToList();
+        if (optimizable.Count > 0)
+        {
+            Console.WriteLine($"\n[建议可优化/冗余项 ({optimizable.Count} 个)]:");
+            foreach (var item in optimizable.Take(15))
+            {
+                Console.WriteLine($"  · {item.CategoryDisplay} | {item.Name} -> {item.Command}");
+            }
+        }
+        return 0;
     }
 }

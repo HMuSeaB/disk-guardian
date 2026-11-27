@@ -122,6 +122,7 @@ public sealed partial class MainWindow : Window
                 "dashboard" => typeof(DashboardPage),
                 "cleaner" => typeof(CleanerPage),
                 "recycle" => typeof(RecyclePage),
+                "startup" => typeof(StartupPage),
                 "audit" => typeof(AuditPage),
                 _ => typeof(DashboardPage)
             };

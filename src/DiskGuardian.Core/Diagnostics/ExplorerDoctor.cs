@@ -208,6 +208,20 @@ public static class ExplorerDoctor
             details.Add("· [权限提示] 当前检测程序以管理员权限运行。在 Windows 11 下，若直接调用 explorer.exe，系统出于隔离安全亦可能临时降级唤出 Win10 窗口。");
         }
 
+        // 5. 整合 SystemTools\Explorer-角标开关 能力：扫描 ShellIconOverlayIdentifiers 数量
+        try
+        {
+            using var overlayKey = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\ShellIconOverlayIdentifiers");
+            if (overlayKey != null)
+            {
+                int overlayCount = overlayKey.GetSubKeyNames().Length;
+                details.Add(overlayCount > 15
+                    ? $"· [角标告警] 图标叠加处理器共 {overlayCount} 个（超过 Windows 15 个限制，可能拖慢 Explorer，可在「启动项治理」查看）。"
+                    : $"· [角标数量] 图标叠加处理器共 {overlayCount} 个（正常）。");
+            }
+        }
+        catch { }
+
         return new ExplorerDiagnosisResult(
             hasAnomaly,
             isWin11,

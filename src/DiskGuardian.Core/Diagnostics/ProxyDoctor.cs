@@ -1145,4 +1145,37 @@ public static class ProxyDoctor
 
         return (count, logs);
     }
+
+    /// <summary>
+    /// 整合 SystemTools\网络诊断.ps1 核心能力：检查第三方 Winsock NSP 注入与 DNS 解析健康度（只读探测，绝不切断现有代理）。
+    /// </summary>
+    public static (int ThirdPartyNspCount, long DnsLatencyMs, string Summary) CheckNetworkStackHealth()
+    {
+        int nspCount = 0;
+        long dnsMs = -1;
+        try
+        {
+            using var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
+            using var cat = baseKey.OpenSubKey(@"SYSTEM\CurrentControlSet\Services\Winsock2\Parameters\Namespace_Catalog5\Catalog_Entries64");
+            if (cat != null)
+            {
+                foreach (var sub in cat.GetSubKeyNames())
+                {
+                    using var entry = cat.OpenSubKey(sub);
+                    var lib = entry?.GetValue("LibraryPath")?.ToString() ?? "";
+                    if (!string.IsNullOrWhiteSpace(lib) && lib.IndexOf("SystemRoot", StringComparison.OrdinalIgnoreCase) < 0)
+                        nspCount++;
+                }
+            }
+
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var addrs = System.Net.Dns.GetHostAddresses("www.baidu.com");
+            sw.Stop();
+            if (addrs.Length > 0) dnsMs = sw.ElapsedMilliseconds;
+        }
+        catch { }
+
+        var msg = $"第三方 Winsock NSP={nspCount} 个 | DNS 解析={(dnsMs >= 0 ? $"{dnsMs} ms" : "超时/受限")}";
+        return (nspCount, dnsMs, msg);
+    }
 }

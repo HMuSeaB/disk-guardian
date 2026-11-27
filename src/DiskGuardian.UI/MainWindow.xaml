@@ -50,6 +50,11 @@
                         <FontIcon Glyph="&#xE72C;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
+                <NavigationViewItem Content="启动项治理" Tag="startup">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE7B5;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
                 <NavigationViewItem Content="审计流水日志" Tag="audit">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE7C3;" />
