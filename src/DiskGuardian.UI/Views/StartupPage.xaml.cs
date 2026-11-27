@@ -127,4 +127,51 @@ public partial class StartupPage : Page
             await LoadStartupAsync();
         }
     }
+
+    private async void BatchOptimizeBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_report == null) return;
+        var targets = _report.Items.Where(i => i.RiskLevel == "SafeToDisable" && i.IsEnabled && i.CanToggle).ToList();
+        if (targets.Count == 0)
+        {
+            var emptyTip = new ContentDialog
+            {
+                Title = "无需优化",
+                Content = "当前没有可安全优化的已启用冗余启动项。",
+                CloseButtonText = "确定",
+                XamlRoot = this.XamlRoot
+            };
+            await emptyTip.ShowAsync();
+            return;
+        }
+
+        var preview = string.Join("\n", targets.Take(10).Select(t => $"• {t.Name}"));
+        if (targets.Count > 10) preview += $"\n...等共 {targets.Count} 项";
+
+        var confirm = new ContentDialog
+        {
+            Title = $"确认一键无损禁用 {targets.Count} 项冗余自启？",
+            Content = $"以下条目将通过 Windows 原生机制禁用（不删注册表键值，随时可恢复）：\n\n{preview}",
+            PrimaryButtonText = "确认优化",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = this.XamlRoot
+        };
+
+        if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
+
+        BatchOptimizeBtn.IsEnabled = false;
+        var (okCount, failCount, logs) = await Task.Run(() => StartupDoctor.DisableAllOptimizable(targets));
+        BatchOptimizeBtn.IsEnabled = true;
+
+        var resTip = new ContentDialog
+        {
+            Title = "批量优化完成",
+            Content = $"成功禁用 {okCount} 项，失败 {failCount} 项（服务/计划任务修改需管理员权限）：\n\n{string.Join("\n", logs.Take(12))}",
+            CloseButtonText = "确定",
+            XamlRoot = this.XamlRoot
+        };
+        await resTip.ShowAsync();
+        await LoadStartupAsync();
+    }
 }

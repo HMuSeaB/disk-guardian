@@ -9,11 +9,20 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Spacing="20" Margin="0,0,16,24">
             <!-- 头部 -->
-            <StackPanel Spacing="4">
-                <TextBlock Text="系统状态总览" FontSize="26" FontWeight="SemiBold"/>
-                <TextBlock Text="基于真实排障证据驱动，坚决不误杀事件日志与系统核心依赖" 
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-            </StackPanel>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Text="系统状态总览" FontSize="26" FontWeight="SemiBold"/>
+                    <TextBlock Text="基于真实排障证据驱动，坚决不误杀事件日志与系统核心依赖" 
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </StackPanel>
+                <Button x:Name="FullScanBtn" Grid.Column="1" Content="🚀 一键全盘体检" Style="{ThemeResource AccentButtonStyle}"
+                        VerticalAlignment="Center" Click="FullScan_Click"
+                        ToolTipService.ToolTip="并发刷新磁盘水位、网络代理、外壳截图、浏览器显存与硬件风暴诊断"/>
+            </Grid>
 
             <!-- 25H2 观察期与禁区指示卡片 -->
             <InfoBar Title="25H2 蓝屏观察期防护生效中" 
@@ -559,6 +568,28 @@
                     </StackPanel>
                 </Border>
             </Grid>
+
+            <!-- SystemTools 常用工具快捷入口 -->
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                    CornerRadius="8" Padding="18,14">
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+                        <TextBlock Text="常用系统工具箱 (SystemTools 整合)" FontWeight="SemiBold" FontSize="15"/>
+                        <TextBlock Text="统一收拢日常维护独立工具，只读直达不跑丢" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <Button Content="💬 微信文件归集" Tag="wechat" Click="LaunchSystemTool_Click"/>
+                        <Button Content="🔐 2FA 本地验证码" Tag="2fa" Click="LaunchSystemTool_Click"/>
+                        <Button Content="⚡ WinTuner 调校" Tag="wintuner" Click="LaunchSystemTool_Click"/>
+                        <Button Content="📂 打开工具目录" Tag="folder" Click="LaunchSystemTool_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
         </StackPanel>
     </ScrollViewer>
 </Page>

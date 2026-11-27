@@ -556,4 +556,31 @@ public static class StartupDoctor
         p.WaitForExit(6000);
         return (p.ExitCode, $"{stdout} {stderr}".Trim());
     }
+
+    /// <summary>
+    /// 批量安全禁用所有标为 SafeToDisable 且当前已启用的冗余启动项。
+    /// </summary>
+    public static (int SucceededCount, int FailedCount, List<string> Logs) DisableAllOptimizable(IEnumerable<StartupItem> items)
+    {
+        int okCount = 0;
+        int failCount = 0;
+        var logs = new List<string>();
+
+        foreach (var item in items.Where(i => i.RiskLevel == "SafeToDisable" && i.IsEnabled && i.CanToggle))
+        {
+            var (ok, msg) = ToggleItem(item, false);
+            if (ok)
+            {
+                okCount++;
+                logs.Add($"✓ {item.Name}");
+            }
+            else
+            {
+                failCount++;
+                logs.Add($"✗ {item.Name}: {msg}");
+            }
+        }
+
+        return (okCount, failCount, logs);
+    }
 }

@@ -27,6 +27,8 @@
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/>
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Button x:Name="BatchOptimizeBtn" Content="⚡ 一键优化冗余项" Click="BatchOptimizeBtn_Click"
+                        ToolTipService.ToolTip="批量无损禁用所有「可优化/冗余」启动项（绝不触碰系统核心、驱动与代理）"/>
                 <Button x:Name="RefreshBtn" Content="🔄 重新扫描" Style="{ThemeResource AccentButtonStyle}" Click="RefreshBtn_Click"/>
             </StackPanel>
         </Grid>

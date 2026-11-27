@@ -698,4 +698,71 @@ public partial class DashboardPage : Page
             await RefreshDeviceStatusAsync();
         }
     }
+
+    private async void FullScan_Click(object sender, RoutedEventArgs e)
+    {
+        FullScanBtn.IsEnabled = false;
+        try
+        {
+            RefreshDrives();
+            await Task.WhenAll(
+                RefreshProxyStatusAsync(),
+                RefreshExplorerStatusAsync(),
+                RefreshBrowserStatusAsync(),
+                RefreshDeviceStatusAsync());
+        }
+        finally
+        {
+            FullScanBtn.IsEnabled = true;
+        }
+    }
+
+    private async void LaunchSystemTool_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn || btn.Tag is not string tag) return;
+
+        string toolsRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "SystemTools");
+        string? target = tag switch
+        {
+            "wechat" => Path.Combine(toolsRoot, "微信文件归集.bat"),
+            "2fa" => Path.Combine(toolsRoot, "2FA-Vault", "2fa.html"),
+            "wintuner" => Path.Combine(toolsRoot, "wintuner.exe"),
+            "folder" => toolsRoot,
+            _ => null
+        };
+
+        if (string.IsNullOrWhiteSpace(target) || (!File.Exists(target) && !Directory.Exists(target)))
+        {
+            var tip = new ContentDialog
+            {
+                Title = "未找到工具文件",
+                Content = $"路径不存在: {target}",
+                CloseButtonText = "确定",
+                XamlRoot = this.XamlRoot
+            };
+            await tip.ShowAsync();
+            return;
+        }
+
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = target,
+                UseShellExecute = true,
+                WorkingDirectory = Directory.Exists(target) ? target : Path.GetDirectoryName(target)
+            });
+        }
+        catch (Exception ex)
+        {
+            var err = new ContentDialog
+            {
+                Title = "启动失败",
+                Content = ex.Message,
+                CloseButtonText = "确定",
+                XamlRoot = this.XamlRoot
+            };
+            await err.ShowAsync();
+        }
+    }
 }
