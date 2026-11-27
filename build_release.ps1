@@ -72,6 +72,7 @@ $readmeContent = @"
   - Windows 资源管理器外壳守护 (ExplorerDoctor)：诊断与一键安全恢复 Windows 11 现代多标签页原生界面。
   - 截图快捷键通道守护 (SnippingTool)：实时感知死锁僵尸进程，一键恢复 Win+Shift+S 响应。
   - Chromium 浏览器性能与显存医生 (BrowserDoctor)：无损重启 GPU 渲染进程释放显存，修剪闲置内存。
+  - 硬件重连风暴与输入卡顿医生 (DeviceDoctor)：秒级探测 BTHUSB/USB 掉线风暴与菜单/输入法宿主膨胀，一键安全止血。
 ========================================================================
 "@
 $readmeContent | Out-File -FilePath "$winuiPkg/使用说明.txt" -Encoding utf8

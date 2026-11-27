@@ -11,6 +11,8 @@ namespace DiskGuardian.UI.Views;
 
 public partial class DashboardPage : Page
 {
+    private string? _lastBluetoothAdapterId;
+
     public DashboardPage()
     {
         this.InitializeComponent();
@@ -18,6 +20,7 @@ public partial class DashboardPage : Page
         _ = RefreshProxyStatusAsync();
         _ = RefreshExplorerStatusAsync();
         _ = RefreshBrowserStatusAsync();
+        _ = RefreshDeviceStatusAsync();
     }
 
     private void RefreshDrives()
@@ -571,6 +574,128 @@ public partial class DashboardPage : Page
         {
             TrimBrowserButton.IsEnabled = true;
             await RefreshBrowserStatusAsync();
+        }
+    }
+
+    private async Task RefreshDeviceStatusAsync()
+    {
+        try
+        {
+            var report = await Task.Run(() => DeviceDoctor.Diagnose());
+            _lastBluetoothAdapterId = report.BluetoothAdapterId;
+
+            DeviceSummaryText.Text = report.SummaryMessage;
+
+            if (report.HealthRating == "storm")
+            {
+                DeviceStatusIcon.Glyph = "\uE7BA";
+                DeviceStatusIcon.Foreground = (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"];
+                DeviceBadgeText.Text = "重连风暴告警";
+            }
+            else if (report.HealthRating == "warning")
+            {
+                DeviceStatusIcon.Glyph = "\uE7BA";
+                DeviceStatusIcon.Foreground = (Brush)Application.Current.Resources["SystemFillColorCautionBrush"];
+                DeviceBadgeText.Text = "存在异常";
+            }
+            else
+            {
+                DeviceStatusIcon.Glyph = "\uE73E";
+                DeviceStatusIcon.Foreground = (Brush)Application.Current.Resources["SystemFillColorSuccessBrush"];
+                DeviceBadgeText.Text = "稳定运行";
+            }
+
+            DeviceStormValueText.Text = report.TotalStormEvents > 0 ? $"{report.TotalStormEvents} 次" : "0 次";
+            DeviceStormSubText.Text = report.BthStormCount > 0
+                ? $"BTHUSB={report.BthStormCount}, USB={report.UsbResetCount}"
+                : "近 15 分钟无掉线枚举";
+
+            DeviceBthValueText.Text = report.BluetoothAdapterHealthy ? "正常在线" : "状态异常";
+            DeviceBthSubText.Text = report.BluetoothAdapterName;
+
+            int bloated = report.InputHosts.FindAll(h => h.IsBloated).Count;
+            DeviceInputValueText.Text = bloated > 0 ? $"{bloated} 个膨胀" : $"{report.InputHosts.Count} 个正常";
+            DeviceInputSubText.Text = bloated > 0 ? "建议刷新菜单与输入法" : "Win 键与输入响应良好";
+
+            DeviceHealthValueText.Text = report.HealthRatingDisplay;
+            DeviceHealthSubText.Text = report.ErrorDevices.Count > 0
+                ? $"{report.ErrorDevices.Count} 个 PnP 错误设备"
+                : "PnP 设备树正常";
+
+            DisableBthButton.IsEnabled = !string.IsNullOrWhiteSpace(_lastBluetoothAdapterId) &&
+                                         (report.BthStormCount >= 3 || !report.BluetoothAdapterHealthy);
+
+            if (report.InputHosts.Count > 0)
+            {
+                var lines = new System.Collections.Generic.List<string>();
+                foreach (var h in report.InputHosts)
+                {
+                    lines.Add($"• {h.ProcessName} (PID {h.Pid}) | {h.WorkingSetHuman} | {h.ThreadCount} 线程{(h.IsBloated ? " [⚠️ 膨胀]" : "")}");
+                }
+                DeviceInputDetailsText.Text = string.Join("\n", lines);
+            }
+            else
+            {
+                DeviceInputDetailsText.Text = "未检测到活跃的桌面输入宿主";
+            }
+
+            DeviceEventDetailsText.Text = report.Details.Count > 0
+                ? string.Join("\n", report.Details)
+                : "近 15 分钟无硬件错误或 PnP 重枚举事件。";
+        }
+        catch (Exception ex)
+        {
+            DeviceSummaryText.Text = $"硬件与输入体检异常: {ex.Message}";
+        }
+    }
+
+    private async void RefreshDevice_Click(object sender, RoutedEventArgs e)
+    {
+        await RefreshDeviceStatusAsync();
+    }
+
+    private async void ResetInputHosts_Click(object sender, RoutedEventArgs e)
+    {
+        ResetInputButton.IsEnabled = false;
+        try
+        {
+            var (ok, count, msg) = await Task.Run(() => DeviceDoctor.ResetInputHosts());
+            var tip = new ContentDialog
+            {
+                Title = ok ? "🔄 桌面输入与菜单已刷新" : "刷新提示",
+                Content = msg,
+                CloseButtonText = "确定",
+                XamlRoot = this.XamlRoot
+            };
+            await tip.ShowAsync();
+        }
+        finally
+        {
+            ResetInputButton.IsEnabled = true;
+            await Task.Delay(600);
+            await RefreshDeviceStatusAsync();
+        }
+    }
+
+    private async void DisableStormBluetooth_Click(object sender, RoutedEventArgs e)
+    {
+        DisableBthButton.IsEnabled = false;
+        try
+        {
+            var id = _lastBluetoothAdapterId;
+            var (ok, msg) = await Task.Run(() => DeviceDoctor.DisableStormBluetooth(id));
+            var tip = new ContentDialog
+            {
+                Title = ok ? "⚡ 蓝牙风暴已止损" : "止损失败",
+                Content = msg,
+                CloseButtonText = "确定",
+                XamlRoot = this.XamlRoot
+            };
+            await tip.ShowAsync();
+        }
+        finally
+        {
+            await RefreshDeviceStatusAsync();
         }
     }
 }

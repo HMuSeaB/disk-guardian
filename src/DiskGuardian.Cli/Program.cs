@@ -76,6 +76,16 @@ public static class Program
             return RunFixBrowser();
         }
 
+        if (args.Contains("--check-devices"))
+        {
+            return RunCheckDevices();
+        }
+
+        if (args.Contains("--reset-input"))
+        {
+            return RunResetInput();
+        }
+
         int level = 1;
         for (int i = 0; i < args.Length; i++)
         {
@@ -423,5 +433,38 @@ public static class Program
             Console.ResetColor();
             return 1;
         }
+    }
+
+    private static int RunCheckDevices()
+    {
+        Console.WriteLine("=== disk-guardian 硬件重连风暴与桌面输入体检 (DeviceDoctor) ===");
+        var report = DeviceDoctor.Diagnose();
+        Console.WriteLine($"健康评级: {report.HealthRatingDisplay}");
+        Console.WriteLine($"近15分钟风暴事件: {report.TotalStormEvents} 次 (BTHUSB={report.BthStormCount}, USB={report.UsbResetCount})");
+        Console.WriteLine($"蓝牙适配器: {report.BluetoothAdapterName} ({(report.BluetoothAdapterHealthy ? "正常" : "异常")})");
+        if (!string.IsNullOrWhiteSpace(report.LastStormSummary))
+        {
+            Console.WriteLine($"最近一次风暴: [{report.LastStormTime:HH:mm:ss}] {report.LastStormSummary}");
+        }
+
+        if (report.InputHosts.Count > 0)
+        {
+            Console.WriteLine("\n[桌面输入与菜单宿主状态]:");
+            foreach (var h in report.InputHosts)
+            {
+                Console.WriteLine($"  · {h.ProcessName,-24} PID={h.Pid,-6} | {h.WorkingSetHuman,-10} | {h.ThreadCount} 线程{(h.IsBloated ? " [⚠️ 膨胀]" : "")}");
+            }
+        }
+
+        Console.WriteLine($"\n[诊断结论]: {report.SummaryMessage}");
+        return report.HealthRating == "storm" ? 1 : 0;
+    }
+
+    private static int RunResetInput()
+    {
+        Console.WriteLine("=== disk-guardian 安全刷新桌面输入与开始菜单宿主 (DeviceDoctor) ===");
+        var (ok, _, msg) = DeviceDoctor.ResetInputHosts();
+        Console.WriteLine($"{(ok ? "[成功]" : "[提示]")} {msg}");
+        return ok ? 0 : 1;
     }
 }
