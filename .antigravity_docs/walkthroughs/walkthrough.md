@@ -1,52 +1,42 @@
-# 验证报告 (Walkthrough) - 浏览器医生 (BrowserDoctor) 研发完成
+# 验证报告与排查日志 (Walkthrough)
 
-## 1. 功能研发背景
-用户反馈 Edge 浏览器运行期间偶发严重卡顿、内存占用突破 3.5GB、GPU 进程膨胀逼近 1GB。为将此排障经验沉淀为系统级工程能力，我们在 DiskGuardian 中设计并落地了 **BrowserDoctor (浏览器健康与性能医生)**。
-
----
-
-## 2. 核心架构与落地成果
-
-### 核心引擎 (`src/DiskGuardian.Core/Diagnostics/BrowserDoctor.cs`)
-- **多维度进程树拓扑解析**：精准解析 Chromium 命令行标志位，细分识别 `gpu-process` (GPU通道)、`renderer` (标签页渲染)、`extension` (扩展插件)、`utility` (网络工具) 与 `browser` (主外壳)；
-- **【⚡ 释放 GPU 显存】(PurgeGpuProcess)**：
-  - 利用 Chromium 架构的 GPU 进程自愈守护机制，安全重启 `gpu-process` 子进程；
-  - **核心特性**：零网页关闭、零表单丢失、不关窗口，瞬间释放数百兆至 1GB 显存，彻底消灭掉帧卡顿；
-- **【🧹 压缩闲置内存】(TrimMemory)**：
-  - 运用 Win32 `psapi.dll!EmptyWorkingSet` 对浏览器全量进程实施内存修剪，批量换出闲置内存页，立减 1~2GB 物理内存负担。
-
-### GUI 仪表盘卡片 (`DashboardPage.xaml` & `.xaml.cs`)
-- **4 宫格核心配置指标面板**：
-  - `运行实例`：显示当前浏览器名称与总进程数（如 `Microsoft Edge (22 进程)`，主进程 PID）；
-  - `总物理内存`：总内存占用与网页/插件分布（如 `3.14 GiB`）；
-  - `GPU 显存通道`：显存开销与卡顿预警（如 `496.1 MiB (⚠️ 显存膨胀卡顿)`）；
-  - `性能健康评级`：直观展示评级（`⚠️ 存在显存卡顿隐患` / `✅ 运行极佳`）；
-- **Expander 技术明细**：实时列出内存占用最高的 Top 8 子进程及其详细职责。
-
-### CLI 运维端指令 (`DiskGuardian.Cli`)
-- `disk-guardian --check-browser`：快速体检输出浏览器进程结构与显存健康度；
-- `disk-guardian --fix-browser`：无损执行 GPU 重启与内存压缩。
-
----
-
-## 3. 测试验证结果
-
-| 测试项 | 验证命令/操作 | 预期结果 | 实际结果 | 状态 |
-| :--- | :--- | :--- | :--- | :--- |
-| **全量工程编译** | `dotnet build src/DiskGuardian.UI/...` | 0 警告 0 错误 | 0 警告 0 错误 | **PASS** |
-| **硬禁区断言自检** | `dotnet run ... --check-rules` | 21 条安全断言全部通过 | 21/21 PASS | **PASS** |
-| **CLI 实机体检验证** | `dotnet run ... --check-browser` | 精准识别 Edge 22 个进程、GPU 496MB | 输出详实诊断报告与 Top 5 进程 | **PASS** |
-
----
-
----
-
-## 4. 正式发版交付 (v1.0.10)
-
-在收到用户明确的【发包】指令后，已完成 `v1.0.10` 的全流程发布与云端构建交付：
+## 一、v1.0.10 发布记录 (2026-11-23)
 - **Git 标签**：`v1.0.10`
-- **构建状态**：GitHub Actions 云端流水线构建全部通过 (`success`)
-- **Release 页面**：[v1.0.10 릴리스](https://github.com/HMuSeaB/disk-guardian/releases/tag/v1.0.10)
-- **交付包清单**：
-  1. `disk-guardian-winui3-win-x64.zip`：Windows 原生 WinUI 3 客户端完整发布包（内含零黑框原生启动器 `DiskGuardian.exe`，集成 BrowserDoctor 显存与内存自愈、SnippingTool 截图死锁一键恢复、Explorer 路径定位按钮）；
-  2. `disk-guardian-cli-win-x64.zip`：CLI 极速运维工具发布包（支持 `--check-browser`、`--fix-browser`、`--check-shell` 与 `--reset-snipping`）。
+- **构建交付**：GitHub Actions 全自动构建通过，发布 `disk-guardian-winui3-win-x64.zip` 与 `disk-guardian-cli-win-x64.zip`。
+- **包含特性**：`BrowserDoctor`（无损释放浏览器 GPU 显存与修剪内存）、`ExplorerDoctor` 扩展 `SnippingTool` 快捷截图死锁自愈、规则目标路径展示与一键定位、侧边栏瘦身至 `185px`。
+
+---
+
+## 二、2026-11-27 系统卡顿全链路排障与工程沉淀日志
+
+### 1. CS2 + 模拟器掉帧排查与 `DOUZHANZHE-Control` 深度优化
+- **实机诊断发现**：
+  1. **后台 GPU 算力偷窃**：`Douzhanzhe.Shell.exe` 关到托盘后只调用了 WinForms `Hide()`，未挂起 WebView2；前端 `src/index.css` 存在无限旋转/呼吸动画叠加全屏 `backdrop-filter: blur(18~30px)`，导致 `msedgewebview2.exe` (`gpu-process`) 在后台持续狂吃 **32.2% RTX 5060 3D 算力**。
+  2. **热节流与频率跌落**：CPU (`Ryzen 9 8940HX`) 顶到 `85~93°C` 高温区且电源方案锁在“平衡”，频率跌至 `2.05~2.40 GHz`；8GB 显存已用 `5.8 GB` 接近溢出。
+  3. **隐藏的致命打包缺陷**：导出日志 `douzhanhe-log-1795761391891.log` 实锤全软件 WMI 报错 `System.Management currently is only supported for Windows desktop applications.`。定位为 `.csproj` 中 `System.Management` 使用了 `Version="*"`，打包拉入了 `79 KB` 的 `11.0.26.53018` 跨平台 Stub DLL，导致 `WMI ACPI 固件接口` 红灯、硬件识别失败进而触发前端隐藏「风扇控制」页面（「自定义散热」点击无反应）。
+- **已落地修复（已同步推送 `origin-fork/fix/memory-v2-integration`，最新提交 `e631603`）**：
+  - `Form1.cs`：新增 `HideToTray()`（`_webView.Visible = false` + `MemoryUsageTargetLevel.Low` + 1500ms 防抖 `TrySuspendAsync()`）及 `IsDisposed` 防护，实机测试后台 GPU 3D 占用直接降至 **0%**；
+  - 前端 `src/utils/visibility.js`、`src/index.css`、`useControlState.js`、`FanControl.jsx`、`GameProfilesPanel.jsx`：补齐 `visibilitychange` + `dz-visibility` 动画冻结、轮询节流、唤醒秒连 WebSocket；
+  - `HardwareDetector.cs`：新增注册表 `HARDWARE\DESCRIPTION\System\BIOS` 兜底识别 `Bellator N176`；
+  - `Douzhanzhe.API.csproj` & `Douzhanzhe.HAL.csproj`：锁定 `System.Management` 与 `PerformanceCounter` 为官方 **`8.0.0`**（发布产物恢复为 `311,984 字节` 真 Windows 运行库）；
+  - `FanCurvePanel.jsx` & `bellator-cs2-cooling.json`：支持运行中热更新（边调边看）、【导入/导出配置】JSON 及新增「游戏降温」预设。
+
+### 2. Win 键 / 回车卡死与蓝牙消失排障 → `DeviceDoctor` 落地
+- **实机诊断发现**：
+  - Windows `System` 事件日志每 1~3 秒狂刷 `BTHUSB (EventID 17): 本地蓝牙无线收发器失败`，导致 PnP 设备树高频重枚举风暴，直接拖垮 `StartMenuExperienceHost` (`169.6~199.5 MiB`)、`TextInputHost` (`189.6~215.6 MiB / 103~108 线程`) 与 `SearchHost`，同时引发每秒 `5.3万+` 缺页中断。
+- **工程沉淀进 `disk-guardian`（提交 `3d322a8`，未打 Tag 发包）**：
+  - 新增 `src/DiskGuardian.Core/Diagnostics/DeviceDoctor.cs`：15 分钟 `BTHUSB`/`USBHUB3`/`USBXHCI` 风暴事件扫描、PnP 错误设备扫描、输入/菜单宿主膨胀检测、`ResetInputHosts()` 安全刷新（不碰 `explorer.exe`）、`DisableStormBluetooth()` 零黑框临时禁用止损；
+  - 集成至 `DashboardPage.xaml` / `.xaml.cs`（4 宫格 `DeviceDoctor` 卡片）及 `DiskGuardian.Cli`（`--check-devices`、`--reset-input`）。
+
+---
+
+## 三、验证结果汇总
+
+| 项目 | 验证项 | 结果 |
+| :--- | :--- | :--- |
+| **DOUZHANZHE-Control** | `npx vitest run` | 3 个文件 39/39 全部通过 |
+| **DOUZHANZHE-Control** | `.\deploy.ps1` + C# 编译 | 0 错误，前端资源同步成功 |
+| **DOUZHANZHE-Control** | `System.Management.dll` 发布体积验证 | 311,984 字节 (`8.0.23.53103`) |
+| **DiskGuardian** | `dotnet build DiskGuardian.UI -c Release -r win-x64` | **0 警告、0 错误** |
+| **DiskGuardian** | `--check-rules` 硬禁区自测 | **21 / 21 PASS** |
+| **DiskGuardian** | `--check-devices` 实机体检 | 精准捕获 26 次 BTHUSB 风暴与膨胀宿主 |
