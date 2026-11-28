@@ -14,6 +14,8 @@ public sealed class PnpErrorDeviceItem
     public string DeviceId { get; set; } = string.Empty;
     public int ErrorCode { get; set; }
     public string PnpClass { get; set; } = string.Empty;
+    public bool HasHealthySibling { get; set; }
+    public bool IsSafeToDisable { get; set; }
 }
 
 public sealed class InputHostStatusItem
@@ -23,10 +25,26 @@ public sealed class InputHostStatusItem
     public long WorkingSetBytes { get; set; }
     public string WorkingSetHuman => CleanerEngine.HumanSize(WorkingSetBytes);
     public int ThreadCount { get; set; }
-    public bool IsBloated =>
-        (ProcessName.Equals("TextInputHost", StringComparison.OrdinalIgnoreCase) && (WorkingSetBytes > 120L * 1024 * 1024 || ThreadCount > 60)) ||
-        (ProcessName.Equals("StartMenuExperienceHost", StringComparison.OrdinalIgnoreCase) && WorkingSetBytes > 140L * 1024 * 1024) ||
-        (ProcessName.Equals("SearchHost", StringComparison.OrdinalIgnoreCase) && WorkingSetBytes > 140L * 1024 * 1024);
+
+    // Win11 24H2/25H2 (Build >= 26100) 下 XAML 输入宿主冷启动基线已明显高于早期版本，按版本分层设定膨胀阈值
+    private static readonly bool IsWin11_24H2OrLater = Environment.OSVersion.Version.Build >= 26100;
+
+    public bool IsBloated
+    {
+        get
+        {
+            long textMemThreshold = IsWin11_24H2OrLater ? 260L * 1024 * 1024 : 120L * 1024 * 1024;
+            int textThreadThreshold = IsWin11_24H2OrLater ? 160 : 60;
+            long menuMemThreshold = IsWin11_24H2OrLater ? 220L * 1024 * 1024 : 140L * 1024 * 1024;
+
+            return (ProcessName.Equals("TextInputHost", StringComparison.OrdinalIgnoreCase) &&
+                    (WorkingSetBytes > textMemThreshold || ThreadCount > textThreadThreshold)) ||
+                   (ProcessName.Equals("StartMenuExperienceHost", StringComparison.OrdinalIgnoreCase) &&
+                    WorkingSetBytes > menuMemThreshold) ||
+                   (ProcessName.Equals("SearchHost", StringComparison.OrdinalIgnoreCase) &&
+                    WorkingSetBytes > menuMemThreshold);
+        }
+    }
 }
 
 public sealed class DeviceDiagnosticReport
@@ -42,6 +60,7 @@ public sealed class DeviceDiagnosticReport
     public bool BluetoothAdapterHealthy { get; set; } = true;
 
     public List<PnpErrorDeviceItem> ErrorDevices { get; set; } = new();
+    public int SafeToDisableErrorCount => ErrorDevices.Count(d => d.IsSafeToDisable);
     public List<InputHostStatusItem> InputHosts { get; set; } = new();
     public bool HasBloatedInputHost => InputHosts.Any(h => h.IsBloated);
 
@@ -195,6 +214,23 @@ public static class DeviceDoctor
                 }
             }
 
+            var healthyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            using (var healthySearcher = new ManagementObjectSearcher(
+                "SELECT Name FROM Win32_PnPEntity WHERE ConfigManagerErrorCode = 0"))
+            {
+                foreach (ManagementObject obj in healthySearcher.Get())
+                {
+                    using (obj)
+                    {
+                        var hName = obj["Name"]?.ToString();
+                        if (!string.IsNullOrWhiteSpace(hName))
+                        {
+                            healthyNames.Add(hName);
+                        }
+                    }
+                }
+            }
+
             using var errSearcher = new ManagementObjectSearcher(
                 "SELECT Name, DeviceID, ConfigManagerErrorCode, PNPClass, Status FROM Win32_PnPEntity WHERE ConfigManagerErrorCode != 0");
             foreach (ManagementObject obj in errSearcher.Get())
@@ -202,20 +238,29 @@ public static class DeviceDoctor
                 using (obj)
                 {
                     var err = Convert.ToInt32(obj["ConfigManagerErrorCode"] ?? 0);
-                    // 跳过已拔出/休眠的纯幽灵设备 (45 = CM_PROB_PHANTOM)
-                    if (err == 45) continue;
+                    // 跳过已拔出/休眠的纯幽灵设备 (45 = CM_PROB_PHANTOM) 与已人为禁用的设备 (22 = CM_PROB_DISABLED)
+                    if (err == 45 || err == 22) continue;
+
+                    var devName = obj["Name"]?.ToString() ?? "未知设备";
+                    var devId = obj["DeviceID"]?.ToString() ?? "";
+                    var pnpClass = obj["PNPClass"]?.ToString() ?? "";
+                    bool hasSibling = healthyNames.Contains(devName);
+                    bool safeToDisable = IsSafeDuplicateVirtualDevice(devId, pnpClass, err, hasSibling);
 
                     var item = new PnpErrorDeviceItem
                     {
-                        Name = obj["Name"]?.ToString() ?? "未知设备",
-                        DeviceId = obj["DeviceID"]?.ToString() ?? "",
+                        Name = devName,
+                        DeviceId = devId,
                         ErrorCode = err,
-                        PnpClass = obj["PNPClass"]?.ToString() ?? ""
+                        PnpClass = pnpClass,
+                        HasHealthySibling = hasSibling,
+                        IsSafeToDisable = safeToDisable
                     };
                     report.ErrorDevices.Add(item);
                     if (report.Details.Count < 15)
                     {
-                        report.Details.Add($"[PnP Error {err}] {item.Name} ({item.DeviceId})");
+                        var tag = safeToDisable ? " [可安全禁用重复虚拟实例]" : "";
+                        report.Details.Add($"[PnP Error {err}] {item.Name} ({item.DeviceId}){tag}");
                     }
                 }
             }
@@ -224,6 +269,27 @@ public static class DeviceDoctor
         {
             report.Details.Add($"[PnP] 设备枚举失败: {ex.Message}");
         }
+    }
+
+    private static bool IsSafeDuplicateVirtualDevice(string deviceId, string pnpClass, int errorCode, bool hasHealthySibling)
+    {
+        if (string.IsNullOrWhiteSpace(deviceId) || errorCode != 10) return false;
+        if (!hasHealthySibling) return false;
+
+        // 仅允许禁用存在同名健康实例的虚拟/媒体重复根节点，绝不触碰系统核心总线、显示、磁盘、网卡或 USB 主控
+        if (pnpClass.Equals("System", StringComparison.OrdinalIgnoreCase) ||
+            pnpClass.Equals("Display", StringComparison.OrdinalIgnoreCase) ||
+            pnpClass.Equals("DiskDrive", StringComparison.OrdinalIgnoreCase) ||
+            pnpClass.Equals("SCSIAdapter", StringComparison.OrdinalIgnoreCase) ||
+            pnpClass.Equals("Net", StringComparison.OrdinalIgnoreCase) ||
+            pnpClass.Equals("USB", StringComparison.OrdinalIgnoreCase) ||
+            pnpClass.Equals("Bluetooth", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return deviceId.StartsWith(@"ROOT\", StringComparison.OrdinalIgnoreCase) ||
+               deviceId.StartsWith(@"SWD\", StringComparison.OrdinalIgnoreCase);
     }
 
     private static void ScanInputHosts(DeviceDiagnosticReport report)
@@ -329,5 +395,61 @@ public static class DeviceDoctor
         {
             return (false, $"执行 pnputil 失败: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// 批量禁用存在健康同名兄弟实例且报 Code 10 的重复虚拟设备（如冗余 VB-Audio 虚拟声卡节点，零黑框，需管理员权限）。
+    /// </summary>
+    public static (int SucceededCount, int FailedCount, List<string> Logs) DisableSafeErrorDevices(IEnumerable<PnpErrorDeviceItem> devices)
+    {
+        int okCount = 0;
+        int failCount = 0;
+        var logs = new List<string>();
+
+        foreach (var dev in devices.Where(d => d.IsSafeToDisable))
+        {
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "pnputil.exe",
+                    Arguments = $"/disable-device \"{dev.DeviceId}\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+
+                using var proc = Process.Start(psi);
+                if (proc == null)
+                {
+                    failCount++;
+                    logs.Add($"✗ {dev.DeviceId}: 无法启动 pnputil.exe");
+                    continue;
+                }
+
+                string stdout = proc.StandardOutput.ReadToEnd();
+                string stderr = proc.StandardError.ReadToEnd();
+                proc.WaitForExit(8000);
+
+                if (proc.ExitCode == 0)
+                {
+                    okCount++;
+                    logs.Add($"✓ 已禁用冗余异常设备: {dev.Name} ({dev.DeviceId})");
+                }
+                else
+                {
+                    failCount++;
+                    logs.Add($"✗ {dev.DeviceId} (需管理员权限, Exit={proc.ExitCode}): {stderr} {stdout}".Trim());
+                }
+            }
+            catch (Exception ex)
+            {
+                failCount++;
+                logs.Add($"✗ {dev.DeviceId}: {ex.Message}");
+            }
+        }
+
+        return (okCount, failCount, logs);
     }
 }

@@ -81,6 +81,11 @@ public static class Program
             return RunCheckDevices();
         }
 
+        if (args.Contains("--disable-error-devices"))
+        {
+            return RunDisableErrorDevices();
+        }
+
         if (args.Contains("--reset-input"))
         {
             return RunResetInput();
@@ -89,6 +94,26 @@ public static class Program
         if (args.Contains("--check-startup"))
         {
             return RunCheckStartup();
+        }
+
+        if (args.Contains("--optimize-startup"))
+        {
+            return RunOptimizeStartup();
+        }
+
+        if (args.Contains("--check-power"))
+        {
+            return RunCheckPower();
+        }
+
+        if (args.Contains("--optimize-power"))
+        {
+            return RunOptimizePower();
+        }
+
+        if (args.Contains("--restore-power"))
+        {
+            return RunRestorePower();
         }
 
         int level = 1;
@@ -461,8 +486,38 @@ public static class Program
             }
         }
 
+        if (report.ErrorDevices.Count > 0)
+        {
+            Console.WriteLine($"\n[异常 PnP 设备 ({report.ErrorDevices.Count} 个)]:");
+            foreach (var dev in report.ErrorDevices)
+            {
+                var hint = dev.IsSafeToDisable ? " [可安全禁用重复虚拟实例]" : "";
+                Console.WriteLine($"  · Code {dev.ErrorCode,-2} | {dev.Name} ({dev.DeviceId}){hint}");
+            }
+        }
+
         Console.WriteLine($"\n[诊断结论]: {report.SummaryMessage}");
         return report.HealthRating == "storm" ? 1 : 0;
+    }
+
+    private static int RunDisableErrorDevices()
+    {
+        Console.WriteLine("=== disk-guardian 禁用重复异常虚拟设备 (DeviceDoctor) ===");
+        var report = DeviceDoctor.Diagnose();
+        var targets = report.ErrorDevices.Where(d => d.IsSafeToDisable).ToList();
+        if (targets.Count == 0)
+        {
+            Console.WriteLine("当前未发现可安全禁用的 Code 10 重复虚拟设备。");
+            return 0;
+        }
+
+        var (ok, fail, logs) = DeviceDoctor.DisableSafeErrorDevices(targets);
+        foreach (var l in logs)
+        {
+            Console.WriteLine($"  {l}");
+        }
+        Console.WriteLine($"\n[完成] 成功禁用 {ok} 项，失败 {fail} 项。");
+        return fail > 0 ? 1 : 0;
     }
 
     private static int RunResetInput()
@@ -490,5 +545,59 @@ public static class Program
             }
         }
         return 0;
+    }
+
+    private static int RunOptimizeStartup()
+    {
+        Console.WriteLine("=== disk-guardian 一键无损优化冗余启动项 (StartupDoctor) ===");
+        var report = StartupDoctor.Scan();
+        var targets = report.Items.Where(i => i.RiskLevel == "SafeToDisable" && i.IsEnabled && i.CanToggle).ToList();
+        if (targets.Count == 0)
+        {
+            Console.WriteLine("当前没有需要优化的已启用冗余启动项（CrossDesk 等远控服务与核心驱动已保留）。");
+            return 0;
+        }
+
+        var (okCount, failCount, logs) = StartupDoctor.DisableAllOptimizable(targets);
+        foreach (var l in logs)
+        {
+            Console.WriteLine($"  {l}");
+        }
+        Console.WriteLine($"\n[完成] 成功无损禁用 {okCount} 项，失败 {failCount} 项（系统服务/高权限任务需以管理员运行）。");
+        return failCount > 0 ? 1 : 0;
+    }
+
+    private static int RunCheckPower()
+    {
+        Console.WriteLine("=== disk-guardian 电源调度与温控偏好体检 (PowerDoctor) ===");
+        var report = PowerDoctor.Diagnose();
+        Console.WriteLine($"健康评级: {report.HealthRatingDisplay}");
+        Console.WriteLine($"当前方案: {report.ActiveSchemeName} ({report.ActiveSchemeGuid})");
+        Console.WriteLine($"性能核偏好 (PERFEPP):  {report.EppDisplay}");
+        Console.WriteLine($"能效核偏好 (PERFEPP1): {report.Epp1Display}");
+        Console.WriteLine($"核心休止 (CPMINCORES): {report.CoreParkDisplay}");
+        Console.WriteLine($"增强模式 (BOOSTMODE):  {report.BoostModeDisplay}");
+        Console.WriteLine($"\n[诊断结论]: {report.SummaryMessage}");
+        foreach (var d in report.Details)
+        {
+            Console.WriteLine($"  · {d}");
+        }
+        return 0;
+    }
+
+    private static int RunOptimizePower()
+    {
+        Console.WriteLine("=== disk-guardian 电源调度温和降温调优 (PowerDoctor) ===");
+        var (ok, msg) = PowerDoctor.OptimizeGentle();
+        Console.WriteLine($"{(ok ? "[成功]" : "[失败]")} {msg}");
+        return ok ? 0 : 1;
+    }
+
+    private static int RunRestorePower()
+    {
+        Console.WriteLine("=== disk-guardian 恢复电源默认偏好 (PowerDoctor) ===");
+        var (ok, msg) = PowerDoctor.RestoreDefault();
+        Console.WriteLine($"{(ok ? "[成功]" : "[失败]")} {msg}");
+        return ok ? 0 : 1;
     }
 }

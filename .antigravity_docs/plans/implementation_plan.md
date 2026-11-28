@@ -60,3 +60,20 @@ flowchart TD
 1. **网络诊断 & 深信服开关** → 并入 `ProxyDoctor`：补齐 DNS 连通性、路由表、WinHTTP/WinINET 及第三方 VPN/NSP 残留一键检测（严禁自动切断正在使用的科学上网代理）。
 2. **Explorer 角标开关** → 并入 `ExplorerDoctor`：复用 `ShellIconOverlayIdentifiers` 扫描结果，可视化展示并支持清理冗余网盘/Git 图标叠加占坑。
 3. **快捷工具直达区**：对于独立工具（如 `2FA-Vault`、`微信文件归集`），可在 DiskGuardian 的「工具箱」或快捷入口中直接挂载唤起，告别桌面/目录翻找。
+
+---
+
+## 五、2026-11-28 实机深度优化沉淀（内置进 DiskGuardian）
+
+针对 2026-11-28 实机诊断发现的四大痛点，在 `DiskGuardian` 中补齐以下永久内置能力：
+1. **修复 `StartupDoctor` 中文状态漏检与误杀**：
+   - 将计划任务枚举升级为 Windows 原生 `Schedule.Service` COM (`Task.Enabled` 布尔值)，根治中文 Windows 下 `schtasks.exe` GBK 乱码成 `ѽ` 导致已禁用任务仍显示启用的问题；
+   - 移除 `ProtectedKeywords` 中的裸词 `"task"`（改用 `taskhost` / `taskmgr` / `taskeng`），防止放行 `GoogleUpdaterTaskUser`、`TabbitUpdaterTaskUser`；
+   - 将 `crossdesk`、`gameviewer`、`todesk`、`sunlogin`、`rustdesk`、`parsec` 移入远程控制 `Caution` 保护类，不再进入【⚡ 一键优化冗余项】误关清单；
+   - CLI 新增 `--optimize-startup`。
+2. **新增 `PowerDoctor` 电源调度与轻载温控偏好医生**：
+   - 检查活动电源方案的 `PERFEPP` / `PERFEPP1`、`CPMINCORES`、`PERFBOOSTMODE` 与 `Douzhanzhe.API` 联动状态；
+   - 提供免管理员温和降温调优（插电 `PERFEPP=45%`、`PERFEPP1=50%`）与恢复默认，接入 WinUI 3 仪表盘卡片与 CLI `--check-power` / `--optimize-power` / `--restore-power`。
+3. **升级 `DeviceDoctor`（Win11 25H2 阈值校准 + 重复虚拟设备禁用）**：
+   - Win11 24H2/25H2 (Build >= 26100) 下将 `TextInputHost` / `StartMenuExperienceHost` / `SearchHost` 膨胀线校准为真实基线之上，避免冷重启后误报；
+   - 识别存在同名健康兄弟节点且报 Code 10 的重复虚拟设备（如冗余 `VB-Audio Virtual Cable ROOT\MEDIA\0002/0003`），支持仪表盘按钮与 CLI `--disable-error-devices` 一键静默禁用。

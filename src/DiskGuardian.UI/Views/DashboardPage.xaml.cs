@@ -12,6 +12,7 @@ namespace DiskGuardian.UI.Views;
 public partial class DashboardPage : Page
 {
     private string? _lastBluetoothAdapterId;
+    private System.Collections.Generic.List<PnpErrorDeviceItem> _lastSafeErrorDevices = new();
 
     public DashboardPage()
     {
@@ -21,6 +22,7 @@ public partial class DashboardPage : Page
         _ = RefreshExplorerStatusAsync();
         _ = RefreshBrowserStatusAsync();
         _ = RefreshDeviceStatusAsync();
+        _ = RefreshPowerStatusAsync();
     }
 
     private void RefreshDrives()
@@ -583,6 +585,7 @@ public partial class DashboardPage : Page
         {
             var report = await Task.Run(() => DeviceDoctor.Diagnose());
             _lastBluetoothAdapterId = report.BluetoothAdapterId;
+            _lastSafeErrorDevices = report.ErrorDevices.FindAll(d => d.IsSafeToDisable);
 
             DeviceSummaryText.Text = report.SummaryMessage;
 
@@ -619,9 +622,12 @@ public partial class DashboardPage : Page
 
             DeviceHealthValueText.Text = report.HealthRatingDisplay;
             DeviceHealthSubText.Text = report.ErrorDevices.Count > 0
-                ? $"{report.ErrorDevices.Count} 个 PnP 错误设备"
+                ? (report.SafeToDisableErrorCount > 0
+                    ? $"{report.ErrorDevices.Count} 个异常 (可清理 {report.SafeToDisableErrorCount} 项)"
+                    : $"{report.ErrorDevices.Count} 个 PnP 错误设备")
                 : "PnP 设备树正常";
 
+            DisableErrorDevicesButton.IsEnabled = _lastSafeErrorDevices.Count > 0;
             DisableBthButton.IsEnabled = !string.IsNullOrWhiteSpace(_lastBluetoothAdapterId) &&
                                          (report.BthStormCount >= 3 || !report.BluetoothAdapterHealthy);
 
@@ -699,6 +705,135 @@ public partial class DashboardPage : Page
         }
     }
 
+    private async void DisableErrorDevices_Click(object sender, RoutedEventArgs e)
+    {
+        if (_lastSafeErrorDevices.Count == 0) return;
+
+        var listText = string.Join("\n", _lastSafeErrorDevices.Select(d => $"• {d.Name} ({d.DeviceId})"));
+        var confirm = new ContentDialog
+        {
+            Title = $"确认禁用 {_lastSafeErrorDevices.Count} 个重复异常虚拟设备？",
+            Content = $"以下设备存在同名正常实例在工作，当前冗余节点报 Code 10 错误：\n\n{listText}\n\n将通过 pnputil 安全禁用这些冗余实例（需要管理员权限，随时可在设备管理器重新启用）。",
+            PrimaryButtonText = "确认禁用",
+            CloseButtonText = "取消",
+            XamlRoot = this.XamlRoot
+        };
+
+        if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
+
+        DisableErrorDevicesButton.IsEnabled = false;
+        try
+        {
+            var targets = _lastSafeErrorDevices.ToArray();
+            var (okCount, failCount, logs) = await Task.Run(() => DeviceDoctor.DisableSafeErrorDevices(targets));
+            var tip = new ContentDialog
+            {
+                Title = failCount == 0 ? "🧹 冗余虚拟设备已清理" : "部分设备操作需要管理员权限",
+                Content = $"成功 {okCount} 项，失败 {failCount} 项：\n\n{string.Join("\n", logs)}",
+                CloseButtonText = "确定",
+                XamlRoot = this.XamlRoot
+            };
+            await tip.ShowAsync();
+        }
+        finally
+        {
+            await RefreshDeviceStatusAsync();
+        }
+    }
+
+    private async Task RefreshPowerStatusAsync()
+    {
+        try
+        {
+            var report = await Task.Run(() => PowerDoctor.Diagnose());
+            PowerSummaryText.Text = report.SummaryMessage;
+
+            if (report.HealthRating == "aggressive" || report.HealthRating == "warning")
+            {
+                PowerStatusIcon.Glyph = "\uE7BA";
+                PowerStatusIcon.Foreground = (Brush)Application.Current.Resources["SystemFillColorCautionBrush"];
+                PowerBadgeText.Text = report.HealthRating == "aggressive" ? "偏激进易高温" : "检测受限";
+            }
+            else
+            {
+                PowerStatusIcon.Glyph = "\uE73E";
+                PowerStatusIcon.Foreground = (Brush)Application.Current.Resources["SystemFillColorSuccessBrush"];
+                PowerBadgeText.Text = "调度均衡";
+            }
+
+            PowerSchemeValueText.Text = report.ActiveSchemeName;
+            PowerSchemeSubText.Text = string.IsNullOrEmpty(report.ActiveSchemeGuid) ? "--" : report.ActiveSchemeGuid;
+
+            PowerEppValueText.Text = report.EppDisplay;
+            PowerEppSubText.Text = report.PerfEppAc.HasValue && report.PerfEppAc.Value <= 15
+                ? "⚠️ 偏激进 (建议 40%~50%)"
+                : "轻载自动降频降温";
+
+            PowerEpp1ValueText.Text = report.Epp1Display;
+            PowerEpp1SubText.Text = "能效核节能偏好";
+
+            PowerCoreValueText.Text = report.CoreParkDisplay;
+            PowerCoreSubText.Text = $"提升策略: {report.BoostModeDisplay}";
+
+            PowerDetailLogsText.Text = report.Details.Count > 0
+                ? string.Join("\n", report.Details)
+                : "无额外诊断详情。";
+        }
+        catch (Exception ex)
+        {
+            PowerSummaryText.Text = $"电源调度体检异常: {ex.Message}";
+        }
+    }
+
+    private async void RefreshPower_Click(object sender, RoutedEventArgs e)
+    {
+        await RefreshPowerStatusAsync();
+    }
+
+    private async void OptimizePower_Click(object sender, RoutedEventArgs e)
+    {
+        OptimizePowerButton.IsEnabled = false;
+        try
+        {
+            var (ok, msg) = await Task.Run(() => PowerDoctor.OptimizeGentle());
+            var tip = new ContentDialog
+            {
+                Title = ok ? "🌡️ 电源温和降温已应用" : "调优未完成",
+                Content = msg,
+                CloseButtonText = "确定",
+                XamlRoot = this.XamlRoot
+            };
+            await tip.ShowAsync();
+        }
+        finally
+        {
+            OptimizePowerButton.IsEnabled = true;
+            await RefreshPowerStatusAsync();
+        }
+    }
+
+    private async void RestorePower_Click(object sender, RoutedEventArgs e)
+    {
+        RestorePowerButton.IsEnabled = false;
+        try
+        {
+            var (ok, msg) = await Task.Run(() => PowerDoctor.RestoreDefault());
+            var tip = new ContentDialog
+            {
+                Title = ok ? "已恢复默认电源偏好" : "恢复未完成",
+                Content = msg,
+                CloseButtonText = "确定",
+                XamlRoot = this.XamlRoot
+            };
+            await tip.ShowAsync();
+        }
+        finally
+        {
+            RestorePowerButton.IsEnabled = true;
+            await RefreshPowerStatusAsync();
+        }
+    }
+
     private async void FullScan_Click(object sender, RoutedEventArgs e)
     {
         FullScanBtn.IsEnabled = false;
@@ -709,7 +844,8 @@ public partial class DashboardPage : Page
                 RefreshProxyStatusAsync(),
                 RefreshExplorerStatusAsync(),
                 RefreshBrowserStatusAsync(),
-                RefreshDeviceStatusAsync());
+                RefreshDeviceStatusAsync(),
+                RefreshPowerStatusAsync());
         }
         finally
         {

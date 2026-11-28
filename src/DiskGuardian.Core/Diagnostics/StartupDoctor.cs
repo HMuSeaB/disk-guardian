@@ -80,22 +80,28 @@ public sealed class StartupReport
 /// </summary>
 public static class StartupDoctor
 {
-    // 绝对不可禁用的系统/硬件/代理关键词
+    // 绝对不可禁用的系统/硬件/代理关键词（避免用裸 "task" 误放行 GoogleUpdaterTaskUser / TabbitUpdaterTaskUser）
     private static readonly string[] ProtectedKeywords =
     {
         "windows", "defender", "securityhealth", "ctfmon", "explorer", "dwm",
         "nvidia", "nvcontainer", "amd", "radeon", "realtek", "intel", "audio",
         "flclash", "clash", "v2ray", "mihomo", "pawnio", "douzhanzhe", "lpcacpiec",
-        "bthserv", "wlan", "dhcp", "dnscache", "rpc", "winmgmt", "task", "ime"
+        "bthserv", "wlan", "dhcp", "dnscache", "rpc", "winmgmt", "taskhost", "taskmgr", "taskeng", "ime"
+    };
+
+    // 远程桌面/远控工具关键词：默认归为 Caution 按需保留，绝不进入一键禁用清单
+    private static readonly string[] RemoteControlKeywords =
+    {
+        "crossdesk", "gameviewer", "todesk", "sunlogin", "rustdesk", "parsec"
     };
 
     // 常见可安全禁用/延后的冗余更新或推广项
     private static readonly string[] OptimizableKeywords =
     {
         "updater", "update", "helper", "telemetry", "crash", "assistant",
-        "adobe", "wps", "baidunetdisk", "xunlei", "thunder", "qqbrowser",
-        "sogou", "youdao", "dingtalk", "feishu", "gameviewer", "crossdesk",
-        "steam", "epic", "onedrive", "edgeupdate", "googleupdate"
+        "adobe", "ccxprocess", "adobearm", "wps", "baidunetdisk", "xunlei", "thunder", "qqbrowser",
+        "sogou", "youdao", "dingtalk", "feishu", "steam", "epic", "onedrive",
+        "edgeupdate", "googleupdate", "googleupdater", "tabbitupdater", "platformexperience"
     };
 
     public static StartupReport Scan()
@@ -133,6 +139,11 @@ public static class StartupDoctor
         if (ProtectedKeywords.Any(k => text.Contains(k)))
         {
             return ("Protected", "系统核心、硬件驱动或网络代理守护项（受保护禁止禁用）");
+        }
+
+        if (RemoteControlKeywords.Any(k => text.Contains(k)))
+        {
+            return ("Caution", "远程控制/远程桌面服务，如需随时远程接入请保留开机自启");
         }
 
         if (category == "WinsockNsp" || category == "AppInitDll" || category == "ShellOverlay")
@@ -292,6 +303,134 @@ public static class StartupDoctor
 
     private static void ScanScheduledTasks(StartupReport report)
     {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // 优先使用 Windows 原生 Schedule.Service COM 读取 Task.Enabled 布尔状态，
+        // 避免中文系统下 schtasks.exe 输出 GBK 文本被 UTF-8 误解码或 CSV 引号错位导致误判。
+        if (TryScanScheduledTasksViaCom(report, seen))
+        {
+            return;
+        }
+
+        ScanScheduledTasksViaSchtasks(report, seen);
+    }
+
+    private static bool TryScanScheduledTasksViaCom(StartupReport report, HashSet<string> seen)
+    {
+        try
+        {
+            var svcType = Type.GetTypeFromProgID("Schedule.Service");
+            if (svcType == null) return false;
+
+            dynamic svc = Activator.CreateInstance(svcType)!;
+            svc.Connect();
+            dynamic root = svc.GetFolder(@"\");
+            EnumerateTaskFolder(root, report, seen);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static void EnumerateTaskFolder(dynamic folder, StartupReport report, HashSet<string> seen)
+    {
+        string folderPath = "";
+        try { folderPath = folder.Path?.ToString() ?? ""; } catch { }
+
+        if (folderPath.Equals(@"\Microsoft", StringComparison.OrdinalIgnoreCase) ||
+            folderPath.StartsWith(@"\Microsoft\", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        try
+        {
+            dynamic tasks = folder.GetTasks(1);
+            foreach (dynamic task in tasks)
+            {
+                try
+                {
+                    string taskPath = task.Path?.ToString() ?? "";
+                    if (string.IsNullOrWhiteSpace(taskPath) ||
+                        taskPath.StartsWith(@"\Microsoft\", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+                    if (!seen.Add(taskPath)) continue;
+
+                    bool isEnabled = Convert.ToBoolean(task.Enabled);
+                    int state = 0;
+                    try { state = Convert.ToInt32(task.State); } catch { }
+                    string statusText = !isEnabled
+                        ? "已禁用"
+                        : state switch
+                        {
+                            4 => "正在运行",
+                            3 => "就绪",
+                            2 => "排队中",
+                            _ => "已启用"
+                        };
+
+                    var cmdParts = new List<string>();
+                    try
+                    {
+                        dynamic actions = task.Definition.Actions;
+                        foreach (dynamic act in actions)
+                        {
+                            try
+                            {
+                                if (Convert.ToInt32(act.Type) == 0)
+                                {
+                                    string p = act.Path?.ToString()?.Trim() ?? "";
+                                    string a = act.Arguments?.ToString()?.Trim() ?? "";
+                                    if (!string.IsNullOrEmpty(p))
+                                    {
+                                        cmdParts.Add(string.IsNullOrEmpty(a) ? p : $"{p} {a}");
+                                    }
+                                }
+                            }
+                            catch { }
+                        }
+                    }
+                    catch { }
+
+                    string taskToRun = cmdParts.Count > 0 ? string.Join("; ", cmdParts) : "(非命令行触发动作)";
+                    var (risk, reason) = Classify(taskPath, taskToRun, "ScheduledTask");
+
+                    report.Items.Add(new StartupItem
+                    {
+                        Id = $"Task:{taskPath}",
+                        Name = taskPath.TrimStart('\\'),
+                        Category = "ScheduledTask",
+                        Location = $"任务状态: {statusText}",
+                        Command = taskToRun,
+                        RawKeyPath = taskPath,
+                        IsEnabled = isEnabled,
+                        RiskLevel = risk,
+                        Reason = reason
+                    });
+                    report.ScheduledTaskCount++;
+                }
+                catch { }
+            }
+        }
+        catch { }
+
+        try
+        {
+            dynamic subFolders = folder.GetFolders(0);
+            foreach (dynamic sub in subFolders)
+            {
+                EnumerateTaskFolder(sub, report, seen);
+            }
+        }
+        catch { }
+    }
+
+    private static void ScanScheduledTasksViaSchtasks(StartupReport report, HashSet<string> seen)
+    {
         try
         {
             var psi = new ProcessStartInfo
@@ -309,7 +448,6 @@ public static class StartupDoctor
             var output = proc.StandardOutput.ReadToEnd();
             proc.WaitForExit(5000);
 
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             using var reader = new StringReader(output);
             string? line;
             while ((line = reader.ReadLine()) != null)

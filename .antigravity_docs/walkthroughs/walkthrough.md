@@ -40,3 +40,18 @@
 | **DiskGuardian** | `dotnet build DiskGuardian.UI -c Release -r win-x64` | **0 警告、0 错误** |
 | **DiskGuardian** | `--check-rules` 硬禁区自测 | **21 / 21 PASS** |
 | **DiskGuardian** | `--check-devices` 实机体检 | 精准捕获 26 次 BTHUSB 风暴与膨胀宿主 |
+
+---
+
+## 四、2026-11-28 全机优化实战与源码内置沉淀
+
+### 1. 实机优化排查结论
+- **温控与电源调度**：早先轻载 10%~21% 下 CPU 达 `83~91°C`、`4.44 GHz`。通过开启斗战者自定义风扇曲线（大扇 `3003~3007 RPM` / 小扇 `6867~7079 RPM`）并将平衡方案 `PERFEPP` 由 `10%` 调优至 `45%`（`PERFEPP1` `50%`），CPU 降至 `70~79°C`。同时定位到 `DOUZHANZHE-Control` `CpuPowerController.cs` 将 `SET_PROC_MAX_STATE` 误设为 `CPMINCORES` (`0cc5b647-...`) 导致 `cfg-office` 强锁 100% 核心不休止。
+- **启动项与远程服务**：保留 `CrossDesk Service` 及自启任务，无损禁用 `GoogleUpdaterTaskUser`、`TabbitUpdaterTaskUser` 与 8 项冗余更新/遥测计划任务；过程中定位到 `StartupDoctor` 因 `schtasks` GBK 乱码与 `"task"` 误匹配导致已禁用任务仍被列为可优化项、更新器被误保护。
+- **输入宿主与重复虚拟设备**：`--reset-input` 重建 `TextInputHost` 后实测 Win11 Build 26200 冷启动基线约 `205.8 MiB / 114 线程`；`VB-Audio Virtual Cable` 主实例 `ROOT\MEDIA\0001` 正常，禁用重复报错的 `ROOT\MEDIA\0002` / `0003`（Code 10）后消除异常设备告警。
+
+### 2. 已内置代码改动（待用户手动执行编译命令）
+- [StartupDoctor.cs](file:///d:/4rchive/Code/disk-guardian/src/DiskGuardian.Core/Diagnostics/StartupDoctor.cs)：`Schedule.Service` COM 枚举任务状态、修正 `ProtectedKeywords` / `RemoteControlKeywords` / `OptimizableKeywords`。
+- [PowerDoctor.cs](file:///d:/4rchive/Code/disk-guardian/src/DiskGuardian.Core/Diagnostics/PowerDoctor.cs)：新增电源调度诊断与免管理员温和降温调优。
+- [DeviceDoctor.cs](file:///d:/4rchive/Code/disk-guardian/src/DiskGuardian.Core/Diagnostics/DeviceDoctor.cs)：Win11 26100+ 阈值校准 + 重复 Code 10 虚拟设备安全禁用。
+- [Program.cs](file:///d:/4rchive/Code/disk-guardian/src/DiskGuardian.Cli/Program.cs) & [DashboardPage.xaml](file:///d:/4rchive/Code/disk-guardian/src/DiskGuardian.UI/Views/DashboardPage.xaml) / [DashboardPage.xaml.cs](file:///d:/4rchive/Code/disk-guardian/src/DiskGuardian.UI/Views/DashboardPage.xaml.cs)：CLI 参数与 WinUI 3 仪表盘集成完毕。
